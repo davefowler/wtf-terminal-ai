@@ -680,10 +680,37 @@ Please choose a provider:
 Enter choice [1-3]: _
 ```
 
-After provider selection, prompt for API key:
+After provider selection, prompt for API key with helpful link:
+
+**Anthropic:**
 ```
-Please enter your Anthropic API key: _
+Please enter your Anthropic API key.
+(Get one at: https://console.anthropic.com/settings/keys)
+
+API key: _
 ```
+
+**OpenAI:**
+```
+Please enter your OpenAI API key.
+(Get one at: https://platform.openai.com/api-keys)
+
+API key: _
+```
+
+**Google Gemini:**
+```
+Please enter your Google API key.
+(Get one at: https://aistudio.google.com/app/apikey)
+
+API key: _
+```
+
+**Other providers:**
+```
+Please enter your API key: _
+```
+(No link shown for providers we don't have a known URL for)
 
 ### 6.2 Integration with LLM Package
 
