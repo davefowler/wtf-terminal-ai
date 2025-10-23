@@ -44,6 +44,7 @@ Users can invoke AI assistance directly from their terminal using the `wtf` comm
 ├── config.json          # Main configuration file
 ├── wtf.md              # User custom instructions
 ├── allowlist.json      # Allowed commands
+├── memories.json       # Agent's learned preferences and context
 └── history.jsonl       # Conversation history (JSONL format)
 ```
 
@@ -104,6 +105,147 @@ Always suggest type hints when showing Python code.
 }
 ```
 
+### 3.5 memories.json - Agent Memory System
+
+The agent maintains a memory file to learn user preferences, tools, workflows, and context over time. This provides richer context than just command history.
+
+**Schema:**
+```json
+{
+  "version": "0.1.0",
+  "last_updated": "2024-03-15T14:30:22Z",
+  "memories": [
+    {
+      "id": "mem-001",
+      "category": "tool_preference",
+      "key": "editor",
+      "value": "emacs",
+      "confidence": 0.95,
+      "first_observed": "2024-03-10T10:15:00Z",
+      "last_observed": "2024-03-15T14:20:00Z",
+      "observation_count": 12,
+      "notes": "User frequently opens files with 'emacs' command"
+    },
+    {
+      "id": "mem-002",
+      "category": "project_context",
+      "key": "current_project",
+      "value": "Django web application with PostgreSQL backend",
+      "confidence": 0.85,
+      "first_observed": "2024-03-12T09:00:00Z",
+      "last_observed": "2024-03-15T14:30:00Z",
+      "observation_count": 8,
+      "notes": "Frequent Django management commands, PostgreSQL queries"
+    },
+    {
+      "id": "mem-003",
+      "category": "workflow_preference",
+      "key": "git_workflow",
+      "value": "rebase over merge",
+      "confidence": 0.70,
+      "first_observed": "2024-03-14T11:00:00Z",
+      "last_observed": "2024-03-15T11:30:00Z",
+      "observation_count": 3,
+      "notes": "User has used 'git rebase' multiple times, never 'git merge'"
+    },
+    {
+      "id": "mem-004",
+      "category": "user_preference",
+      "key": "explanation_style",
+      "value": "concise with examples",
+      "confidence": 0.60,
+      "first_observed": "2024-03-15T10:00:00Z",
+      "last_observed": "2024-03-15T14:30:00Z",
+      "observation_count": 2,
+      "notes": "User asked for 'brief explanation' and 'just show me an example'"
+    },
+    {
+      "id": "mem-005",
+      "category": "tool_preference",
+      "key": "package_manager",
+      "value": "poetry",
+      "confidence": 0.90,
+      "first_observed": "2024-03-10T14:00:00Z",
+      "last_observed": "2024-03-15T13:00:00Z",
+      "observation_count": 7,
+      "notes": "Frequent 'poetry install', 'poetry add' commands"
+    },
+    {
+      "id": "mem-006",
+      "category": "technical_context",
+      "key": "environment",
+      "value": "macOS with Homebrew, uses Docker for local development",
+      "confidence": 0.85,
+      "first_observed": "2024-03-10T09:00:00Z",
+      "last_observed": "2024-03-15T12:00:00Z",
+      "observation_count": 10,
+      "notes": "Frequent 'brew' and 'docker-compose' commands"
+    }
+  ]
+}
+```
+
+**Memory Categories:**
+- `tool_preference`: Preferred tools (editor, shell, git client, package manager, etc.)
+- `project_context`: Current projects and technologies being used
+- `workflow_preference`: How user prefers to work (git workflow, testing approach, etc.)
+- `user_preference`: Communication and interaction preferences
+- `technical_context`: Environment setup, OS, development tools
+- `recent_issue`: Recently solved problems (helps avoid repeating solutions)
+- `coding_style`: Coding conventions and style preferences
+
+**How Memories Work:**
+
+1. **Automatic Learning:**
+   - Agent observes patterns in shell history
+   - Infers preferences from repeated behaviors
+   - Confidence increases with more observations
+   - Low-confidence memories can be promoted or discarded
+
+2. **Memory Updates:**
+   - Agent can add new memories when discovering patterns
+   - Existing memories updated with new observations
+   - Confidence scores adjust based on consistency
+   - Stale memories (not observed recently) decay in confidence
+
+3. **Context Integration:**
+   - Memories are included in agent context for every invocation
+   - High-confidence memories weighted more heavily
+   - Agent can reference memories in responses: "I know you prefer emacs, so..."
+
+4. **User Control:**
+   - Users can view memories: `wtf --show-memories`
+   - Users can edit memories.json directly
+   - Users can clear memories: `wtf --clear-memories`
+   - Users can disable memory system in config
+
+**Example Agent Behavior:**
+
+```bash
+# User runs emacs frequently
+> emacs myfile.py
+> emacs another.py
+> emacs config.yml
+
+# Later, user asks for help
+> wtf how do I edit my git config?
+
+# Agent response uses memory:
+"I'll help you edit your git config. Since you use emacs, you can run:
+
+╭─────────────────────────────────────────────╮
+│ $ git config --global core.editor emacs   │
+╰─────────────────────────────────────────────╯
+
+This sets emacs as your default git editor."
+```
+
+**Memory Privacy:**
+- Memories stored locally only
+- Not sent to AI provider (except as context for current query)
+- User has full control over memory file
+- Sensitive data filtering (same as history)
+
 ## 4. Core Features
 
 ### 4.1 Command Interface
@@ -130,6 +272,7 @@ wtf "what does this error mean?"
 - Current working directory
 - Git repository status (if in a git repo)
 - Environment variables (selective, non-sensitive)
+- Agent memories (learned preferences, tools, and context)
 
 **Command Re-execution for Context:**
 When the agent needs more information, it can request to re-run recent commands to see their output:
@@ -415,6 +558,8 @@ wtf [OPTIONS] [QUERY...]
 - `--edit-instructions`: Open wtf.md in editor
 - `--edit-allowlist`: Open allowlist.json in editor
 - `--list-models`: Show available AI models
+- `--show-memories`: Display learned preferences and context
+- `--clear-memories`: Clear all learned memories
 - `--history`: Show conversation history
 - `--clear-history`: Clear conversation history
 - `--model MODEL`: Override default model
@@ -439,6 +584,9 @@ wtf --edit-instructions
 
 # List available models
 wtf --list-models
+
+# View learned memories
+wtf --show-memories
 
 # Use specific model
 wtf --model gpt-4 "explain this docker error"
