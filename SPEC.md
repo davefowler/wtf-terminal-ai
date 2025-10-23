@@ -274,13 +274,35 @@ wtf "what does this error mean?"
 - Environment variables (selective, non-sensitive)
 - Agent memories (learned preferences, tools, and context)
 
-**Command Re-execution for Context:**
-When the agent needs more information, it can request to re-run recent commands to see their output:
+**Command Execution for Context:**
+When the agent needs more information to understand the situation, it can run commands to gather context. These are distinguished from action commands:
 
+- **Context commands**: Run to gather information (e.g., `git status`, `cat package.json`)
+  - Run silently with minimal output to user
+  - Show compact status: `✓ Checked git status`
+  - Full output used internally by agent
+
+- **Action commands**: Run to solve the user's problem (e.g., `git merge --abort`, config changes)
+  - Always show full output to user
+  - User sees exactly what happened
+  - More transparency for state-changing operations
+
+**Permission handling:**
 ```
-I need to see the output of `git status` to help you.
-May I run it? [Y/n]
+Checking your git repository state...
+
+╭─────────────────────────────────────────────╮
+│ $ git status                               │
+╰─────────────────────────────────────────────╯
+
+Run this command to gather context? [Y/n]
 ```
+
+If user approves, agent runs it and shows:
+```
+✓ Checked git status
+```
+(Full output used internally, not shown to user unless verbose mode)
 
 ### 4.3 Command Execution Flow
 
@@ -311,40 +333,135 @@ When the agent wants to execute a command:
 
 4. **Execution & Output:**
    - Run command
-   - Show output to user
-   - Continue with agent response
+   - **For action commands:** Show full output to user
+   - **For context commands:** Show compact status (✓ Done), hide output unless `--verbose`
+   - Continue with agent response based on results
 
-### 4.4 Response Generation
+### 4.4 Agent Behavior Philosophy
+
+**The agent should DO, not just TELL:**
+
+The agent is an active assistant, not a passive tutorial. It should:
+- Execute commands to solve problems (not just suggest them)
+- Only explain manual steps when automation isn't possible
+- Be proactive and helpful, not instructional
+
+**Examples:**
+
+**❌ Bad (Passive/Instructional):**
+```
+I'll help you set your git editor. You can run:
+
+╭─────────────────────────────────────────────╮
+│ $ git config --global core.editor emacs   │
+╰─────────────────────────────────────────────╯
+
+This will configure emacs as your default editor.
+```
+
+**✅ Good (Active/Helpful):**
+```
+I'll configure emacs as your git editor.
+
+╭─────────────────────────────────────────────╮
+│ $ git config --global core.editor emacs   │
+╰─────────────────────────────────────────────╯
+
+Run this command? [Y/n]
+
+[After execution]
+✓ Done! Emacs is now your default git editor.
+```
+
+**When to explain vs do:**
+- **Do it**: Anything that can be automated via shell commands
+- **Explain it**: Actions that require manual intervention (keyboard shortcuts, UI interactions, code changes that need review)
+
+### 4.5 Response Generation
 
 **Response Types:**
 
-1. **Simple Answer** (no command execution needed)
+1. **Simple Answer** (manual action required, can't be automated)
    ```
-   To exit vim:
-   - Press ESC
-   - Type :q! to quit without saving
-   - Or :wq to save and quit
+   To exit vim, press ESC then type :q! to quit without saving.
+
+   (Can't automate this since you're currently inside vim)
    ```
 
-2. **Command Execution** (with explanation)
+2. **Active Assistance** (agent does the work)
    ```
-   You're in the middle of a merge conflict. Let me abort it for you.
+   I'll abort the merge for you.
 
-   [Command execution UI]
+   ╭─────────────────────────────────────────────╮
+   │ $ git merge --abort                        │
+   ╰─────────────────────────────────────────────╯
 
-   ✓ Merge aborted successfully. Your branch is now clean.
+   Run this command? [Y/n]
+
+   [After execution with full output shown]
+   Merge aborted successfully. Your branch is back to a clean state.
    ```
 
-3. **Diagnostic** (after re-running commands)
+3. **Multi-step Actions** (agent does multiple things)
    ```
-   Based on your git status, you have 3 conflicted files:
-   - src/app.py
-   - src/utils.py
-   - README.md
+   I'll fix your PostgreSQL connection issue by updating your .env file
+   and restarting the Docker container.
 
-   Here's how to resolve them:
-   [detailed instructions]
+   ╭─────────────────────────────────────────────╮
+   │ $ echo "DB_HOST=localhost" >> .env         │
+   ╰─────────────────────────────────────────────╯
+
+   Run this command? [Y/n]
+
+   ✓ Updated .env file
+
+   ╭─────────────────────────────────────────────╮
+   │ $ docker-compose restart db                │
+   ╰─────────────────────────────────────────────╯
+
+   Run this command? [Y/n]
+
+   [Shows docker output]
+
+   ✓ Done! Your database should be accessible now at localhost:5432
    ```
+
+4. **Diagnostic with Action** (gathers context, then solves)
+   ```
+   Let me check your git status first.
+
+   ✓ Checked git status
+
+   You have 3 conflicted files from the merge. I'll abort the merge
+   so you can start fresh.
+
+   ╭─────────────────────────────────────────────╮
+   │ $ git merge --abort                        │
+   ╰─────────────────────────────────────────────╯
+
+   Run this command? [Y/n]
+
+   [Shows output]
+
+   ✓ Merge aborted. You can now try merging again or rebase instead.
+   ```
+
+**Output Display Rules:**
+
+1. **Action commands** (state-changing):
+   - Always show full command output
+   - User sees exactly what happened
+   - Examples: git merge, file modifications, config changes
+
+2. **Context commands** (read-only):
+   - Show compact status: `✓ Checked git status`
+   - Hide detailed output (unless `--verbose`)
+   - Keeps focus on the solution, not the investigation
+   - Examples: git status, cat files, ls directories
+
+3. **Verbose mode override:**
+   - `wtf --verbose` shows all output for all commands
+   - Useful for debugging or understanding agent behavior
 
 ## 5. Conversation History & Context Management
 
@@ -412,6 +529,51 @@ When `wtf` is invoked, it:
 > wtf "it won't let me push"
 # AI recognizes this is continuation, uses previous context
 ```
+
+### 5.4 Agent System Prompt
+
+The agent is given a system prompt that instructs it to be active and helpful:
+
+```
+You are wtf, a terminal AI assistant. Your job is to actively help users solve terminal and development problems.
+
+BEHAVIOR GUIDELINES:
+- Be active, not passive: DO things for the user, don't just tell them how to do things
+- Execute commands to solve problems whenever possible
+- Only explain manual steps when automation is impossible (e.g., keyboard shortcuts in active programs)
+- Be concise and action-oriented
+- Use the user's preferred tools and workflows (check memories)
+
+CONTEXT AVAILABLE TO YOU:
+- User's recent shell history (last 5 commands)
+- Current working directory
+- Git repository status (if applicable)
+- User memories (preferred tools, workflows, projects)
+- Previous conversation context (if continuing a conversation)
+
+COMMAND EXECUTION:
+- You can run commands to solve problems
+- Distinguish between:
+  - Context commands (gathering info): git status, cat files, ls - run quietly
+  - Action commands (making changes): git merge, config changes - show full output
+- Always explain what you're doing and why before running commands
+- Request permission for commands not in user's allowlist
+
+RESPONSE STYLE:
+- Active voice: "I'll abort the merge" not "You can abort the merge"
+- Brief explanations before commands
+- Show outcomes after execution
+- Suggest next steps when relevant
+
+MEMORY USAGE:
+- Reference user memories to personalize help
+- Suggest adding to allowlist for frequently used commands
+- Update memories when you observe new patterns
+
+Remember: You're an assistant that DOES things, not a manual that tells users HOW to do things.
+```
+
+This prompt ensures the agent behaves actively and helpfully, using all available context to provide personalized assistance.
 
 ## 6. API Provider Support
 
