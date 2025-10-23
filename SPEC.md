@@ -149,16 +149,16 @@ When the agent wants to execute a command:
 
 2. **Permission Request UI:**
    ```
+   Resolving merge conflict
+
+   I need to abort the merge in progress.
+
    ╭─────────────────────────────────────────────╮
-   │ Resolving merge conflict                   │
-   │                                             │
-   │ I need to abort the merge in progress.     │
-   │                                             │
    │ $ git merge --abort                        │
-   │                                             │
-   │ Run this command?                          │
-   │ [Y]es | Yes and [a]lways allow | [n]o     │
    ╰─────────────────────────────────────────────╯
+
+   Run this command?
+   [Y]es | Yes and [a]lways allow | [n]o
    ```
 
 3. **User Response:**
