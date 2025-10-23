@@ -209,9 +209,40 @@ The agent maintains a memory file to learn user preferences, tools, workflows, a
    - Stale memories (not observed recently) decay in confidence
 
 3. **Context Integration:**
-   - Memories are included in agent context for every invocation
-   - High-confidence memories weighted more heavily
+   - Memories converted to natural language before sending to AI
+   - Only high-confidence memories (≥0.6) included in context
+   - Formatted as clean, readable text (not raw JSON)
    - Agent can reference memories in responses: "I know you prefer emacs, so..."
+
+   **Example conversion:**
+
+   Raw memory (stored):
+   ```json
+   {
+     "category": "tool_preference",
+     "key": "editor",
+     "value": "emacs",
+     "confidence": 0.95,
+     "observation_count": 12
+   }
+   ```
+
+   Formatted for AI context:
+   ```
+   USER PREFERENCES:
+   - Preferred editor: emacs
+   - Package manager: poetry
+   - Git workflow: prefers rebase over merge
+
+   CURRENT PROJECT:
+   - Django web application with PostgreSQL backend
+
+   ENVIRONMENT:
+   - macOS with Homebrew
+   - Uses Docker for local development
+   ```
+
+   This keeps the context clean and token-efficient while providing the AI with actionable information.
 
 4. **User Control:**
    - Users can view memories: `wtf --show-memories`
