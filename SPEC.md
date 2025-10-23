@@ -272,26 +272,57 @@ When `wtf` is invoked, it:
 
 ## 6. API Provider Support
 
-### 6.1 Provider Detection
+### 6.1 Provider Detection & Setup
 
-On first run, check for API keys in order:
+On first run, check for API keys in environment variables:
 1. `ANTHROPIC_API_KEY`
 2. `OPENAI_API_KEY`
 3. `GOOGLE_API_KEY` or `GEMINI_API_KEY`
 
-Prompt user:
+**If multiple keys found:**
 ```
-Found API key for Anthropic Claude. Use this? [Y/n]
+Welcome to wtf! Let's set up your AI provider.
+
+Checking for API keys...
+✓ Found ANTHROPIC_API_KEY
+✓ Found OPENAI_API_KEY
+
+Which would you like to use?
+1. Use Anthropic key
+2. Use OpenAI key
+3. Set up a different provider
+
+Enter choice [1-3]: _
 ```
 
-If no keys found:
+**If single key found:**
 ```
-No API keys found. Please choose a provider:
+Welcome to wtf! Let's set up your AI provider.
+
+Checking for API keys...
+✓ Found ANTHROPIC_API_KEY
+
+Use this API key? [Y/n]
+```
+
+**If no keys found:**
+```
+Welcome to wtf! Let's set up your AI provider.
+
+Checking for API keys...
+No API keys found in environment.
+
+Please choose a provider:
 1. Anthropic Claude
 2. OpenAI GPT
 3. Google Gemini
 
 Enter choice [1-3]: _
+```
+
+After provider selection, prompt for API key:
+```
+Please enter your Anthropic API key: _
 ```
 
 ### 6.2 Integration with LLM Package
@@ -301,17 +332,51 @@ Use Simon Willison's `llm` package as the backend:
 - Handles API key management
 - Supports multiple models
 - User can leverage existing `llm` configuration
+- Built-in model discovery via `llm.get_models()`
 
-### 6.3 Model Configuration
+**Listing Models Programmatically:**
+```python
+import llm
 
-Default models:
-- **Anthropic:** `claude-sonnet-3-5-20241022`
-- **OpenAI:** `gpt-4-turbo-preview`
+# Get all available models
+for model in llm.get_models():
+    print(model.model_id)
+```
+
+**CLI Command:**
+```bash
+llm models  # Shows all available models
+```
+
+### 6.3 Model Configuration & Selection
+
+After API key is configured, show available models for that provider:
+
+```
+Available models for Anthropic:
+1. claude-3-5-sonnet-20241022 [recommended]
+2. claude-3-opus-20240229
+3. claude-3-sonnet-20240229
+4. claude-3-haiku-20240307
+
+Select a model [1]: _
+```
+
+**Default Models:**
+- **Anthropic:** `claude-3-5-sonnet-20241022`
+- **OpenAI:** `gpt-4o`
 - **Gemini:** `gemini-pro`
 
-Users can override in `config.json` or via command:
+**Runtime Override:**
+Users can override the configured model via command line:
 ```bash
 wtf --model gpt-4 "explain this error"
+wtf --model claude-opus "review this code"
+```
+
+**List Available Models:**
+```bash
+wtf --list-models
 ```
 
 ## 7. Shell Support
@@ -349,6 +414,7 @@ wtf [OPTIONS] [QUERY...]
 - `--config`: Open config file in editor
 - `--edit-instructions`: Open wtf.md in editor
 - `--edit-allowlist`: Open allowlist.json in editor
+- `--list-models`: Show available AI models
 - `--history`: Show conversation history
 - `--clear-history`: Clear conversation history
 - `--model MODEL`: Override default model
@@ -370,6 +436,9 @@ wtf --history
 
 # Edit custom instructions
 wtf --edit-instructions
+
+# List available models
+wtf --list-models
 
 # Use specific model
 wtf --model gpt-4 "explain this docker error"
