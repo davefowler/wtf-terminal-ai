@@ -367,6 +367,11 @@ When the agent wants to execute a command:
 
    The same UI is used for both context and action commands. The agent's reasoning explains why.
 
+   **Visual Formatting:**
+   - Command letters **[Y]**, **[a]**, **[n]** are shown in bold
+   - Allowlist pattern is highlighted (bold or colored) so user clearly sees what they're allowing
+   - Example uses `**bold**` notation - implement with ANSI codes in terminal
+
    **Example 1 - Context command:**
    ```
    To see the errors you're encountering, I need to rerun the command.
@@ -377,6 +382,10 @@ When the agent wants to execute a command:
 
    Run this command?
    [Y]es | Yes and [a]lways allow 'npm run build' | [n]o
+    ^                    ^                            ^
+   bold                bold                         bold
+
+   (In terminal: allowlist pattern 'npm run build' shown in bold/color)
    ```
 
    **Example 2 - Action command with subcommand:**
@@ -389,6 +398,9 @@ When the agent wants to execute a command:
 
    Run this command?
    [Y]es | Yes and [a]lways allow 'git merge' | [n]o
+    ^                    ^                       ^
+
+   (Pattern 'git merge' highlighted so user knows what they're allowing)
    ```
 
    **Example 3 - Context command:**
@@ -414,6 +426,13 @@ When the agent wants to execute a command:
    Run this command?
    [Y]es | Yes and [a]lways allow 'git commit' | [n]o
    ```
+
+   **Implementation notes:**
+   - Use ANSI escape codes for formatting
+   - Bold: `\033[1m{text}\033[0m`
+   - Letters [Y], [a], [n]: Make bold
+   - Allowlist pattern (quoted text): Make bold or use color (cyan/yellow)
+   - Keep it simple and readable
 
    **How the pattern is determined:**
 
@@ -879,6 +898,8 @@ wtf [OPTIONS] [QUERY...]
 - `--verbose`: Show detailed execution info
 - `--no-execute`: Don't execute any commands (dry-run)
 - `--reset`: Reset configuration to defaults
+- `--setup-hooks`: Set up shell integration for auto-triggering wtf on errors
+- `--remove-hooks`: Remove shell integration hooks
 
 ### 8.3 Examples
 
@@ -906,6 +927,176 @@ wtf --model gpt-4 "explain this docker error"
 
 # Dry run mode
 wtf --no-execute "fix my git merge"
+
+# Set up shell hooks (optional)
+wtf --setup-hooks
+```
+
+### 8.4 Shell Integration (Optional Auto-Triggers)
+
+**NOT enabled by default.** Users can optionally set up shell hooks to automatically invoke wtf when errors occur.
+
+#### Setup
+
+```bash
+wtf --setup-hooks
+```
+
+This adds hooks to your shell configuration (`~/.zshrc` or `~/.bashrc`) that automatically trigger wtf in two scenarios:
+
+1. **Command exits with error** (non-zero exit code)
+2. **Command not found** errors
+
+#### How It Works
+
+**1. Error Auto-Trigger (Non-zero Exit Code)**
+
+When a command fails, automatically run `wtf "I hit an error"`:
+
+**Zsh implementation** (added to `~/.zshrc`):
+```zsh
+# wtf auto-trigger on error
+precmd() {
+    local exit_code=$?
+    if [[ $exit_code -ne 0 ]] && [[ -n "$WTF_AUTO_ON_ERROR" ]]; then
+        echo "\n⚠️  Command failed with exit code $exit_code"
+        wtf "I hit an error"
+    fi
+}
+
+# Enable/disable via environment variable
+export WTF_AUTO_ON_ERROR=1  # Set to 0 to temporarily disable
+```
+
+**Bash implementation** (added to `~/.bashrc`):
+```bash
+# wtf auto-trigger on error
+wtf_check_error() {
+    local exit_code=$?
+    if [[ $exit_code -ne 0 ]] && [[ -n "$WTF_AUTO_ON_ERROR" ]]; then
+        echo -e "\n⚠️  Command failed with exit code $exit_code"
+        wtf "I hit an error"
+    fi
+}
+PROMPT_COMMAND="wtf_check_error"
+
+export WTF_AUTO_ON_ERROR=1
+```
+
+**2. Command Not Found Auto-Trigger**
+
+When a command is not found, automatically run `wtf "command not found: {cmd}"`:
+
+**Zsh implementation** (added to `~/.zshrc`):
+```zsh
+# wtf auto-trigger on command not found
+command_not_found_handler() {
+    local cmd=$1
+    echo "Command not found: $cmd"
+    if [[ -n "$WTF_AUTO_ON_NOT_FOUND" ]]; then
+        wtf "command not found: $cmd"
+    fi
+    return 127
+}
+
+export WTF_AUTO_ON_NOT_FOUND=1
+```
+
+**Bash implementation** (added to `~/.bashrc`):
+```bash
+# wtf auto-trigger on command not found
+command_not_found_handle() {
+    local cmd=$1
+    echo "Command not found: $cmd"
+    if [[ -n "$WTF_AUTO_ON_NOT_FOUND" ]]; then
+        wtf "command not found: $cmd"
+    fi
+    return 127
+}
+
+export WTF_AUTO_ON_NOT_FOUND=1
+```
+
+#### User Control
+
+Users can enable/disable auto-triggers via environment variables:
+
+```bash
+# Disable error auto-trigger temporarily
+export WTF_AUTO_ON_ERROR=0
+
+# Disable command-not-found auto-trigger
+export WTF_AUTO_ON_NOT_FOUND=0
+
+# Re-enable
+export WTF_AUTO_ON_ERROR=1
+export WTF_AUTO_ON_NOT_FOUND=1
+```
+
+Or add to `~/.zshrc` / `~/.bashrc` for permanent changes.
+
+#### Removal
+
+```bash
+wtf --remove-hooks
+```
+
+This removes the hook code from shell configuration files.
+
+#### What the Agent Sees
+
+**On error auto-trigger:**
+- User query: `"I hit an error"`
+- Recent shell history includes the failed command
+- Agent can see the command and ask to re-run it to see error output
+- Agent helps debug based on the error
+
+**On command not found:**
+- User query: `"command not found: {cmd}"`
+- Agent can suggest:
+  - Correct command spelling
+  - Installation instructions
+  - Alternative commands
+  - Check if command is aliased
+
+#### Important Notes
+
+- **Not enabled by default** - users must opt-in with `--setup-hooks`
+- Can be noisy if many commands fail - use environment variables to disable
+- Agent still follows normal permission flow for running commands
+- Works alongside manual `wtf` invocations
+- Shell history context helps agent understand what went wrong
+
+#### Example Flow
+
+```bash
+# User runs a command that fails
+$ npm run biuld
+npm error Missing script: "biuld"
+
+⚠️  Command failed with exit code 1
+
+# wtf auto-triggered with query "I hit an error"
+Checking recent commands...
+
+I see you tried to run 'npm run biuld', but it failed because there's
+no script named 'biuld' in your package.json.
+
+Did you mean 'npm run build'?
+
+# Agent can continue helping...
+```
+
+```bash
+# User tries to run a command that doesn't exist
+$ kubeectl get pods
+Command not found: kubeectl
+
+# wtf auto-triggered with "command not found: kubeectl"
+You tried to run 'kubeectl', which doesn't exist.
+
+Did you mean 'kubectl'? If kubectl isn't installed, I can help you
+install it.
 ```
 
 ## 9. Error Handling
