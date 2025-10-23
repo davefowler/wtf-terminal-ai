@@ -712,6 +712,19 @@ Please enter your API key: _
 ```
 (No link shown for providers we don't have a known URL for)
 
+**Implementation note:**
+- Check if `llm` package exposes provider metadata (see `llm-provider-metadata-proposal.md`)
+- If available, use `model.get_provider_metadata().api_key_url`
+- Otherwise, maintain hardcoded mapping for common providers:
+  ```python
+  API_KEY_URLS = {
+      "anthropic": "https://console.anthropic.com/settings/keys",
+      "openai": "https://platform.openai.com/api-keys",
+      "gemini": "https://aistudio.google.com/app/apikey",
+  }
+  ```
+- This keeps setup smooth even if llm doesn't provide the metadata yet
+
 ### 6.2 Integration with LLM Package
 
 Use Simon Willison's `llm` package as the backend:
