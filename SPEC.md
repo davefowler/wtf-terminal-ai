@@ -898,8 +898,10 @@ wtf [OPTIONS] [QUERY...]
 - `--verbose`: Show detailed execution info
 - `--no-execute`: Don't execute any commands (dry-run)
 - `--reset`: Reset configuration to defaults
-- `--setup-hooks`: Set up shell integration for auto-triggering wtf on errors
-- `--remove-hooks`: Remove shell integration hooks
+- `--setup-error-hook`: Set up shell hook to auto-trigger wtf on command errors
+- `--setup-not-found-hook`: Set up shell hook to auto-trigger wtf on command not found
+- `--setup-hooks`: Set up both error and not-found hooks (convenience command)
+- `--remove-hooks`: Remove all shell integration hooks
 
 ### 8.3 Examples
 
@@ -928,17 +930,28 @@ wtf --model gpt-4 "explain this docker error"
 # Dry run mode
 wtf --no-execute "fix my git merge"
 
-# Set up shell hooks (optional)
-wtf --setup-hooks
+# Set up shell hooks (optional - separately or both)
+wtf --setup-error-hook        # Only error auto-trigger
+wtf --setup-not-found-hook    # Only command-not-found auto-trigger
+wtf --setup-hooks             # Both hooks
 ```
 
 ### 8.4 Shell Integration (Optional Auto-Triggers)
 
 **NOT enabled by default.** Users can optionally set up shell hooks to automatically invoke wtf when errors occur.
 
+These hooks can be set up independently - you might want error auto-trigger but not command-not-found, or vice versa.
+
 #### Setup
 
 ```bash
+# Set up error auto-trigger only
+wtf --setup-error-hook
+
+# Set up command-not-found auto-trigger only
+wtf --setup-not-found-hook
+
+# Set up both (convenience command)
 wtf --setup-hooks
 ```
 
@@ -985,13 +998,15 @@ export WTF_AUTO_ON_ERROR=1
 
 **2. Command Not Found Auto-Trigger**
 
-When a command is not found, automatically run `wtf "command not found: {cmd}"`:
+When a command is not found, automatically run `wtf "command not found: {cmd}"`.
+
+Both zsh and bash pass the unknown command name as the first argument to the handler, allowing us to include it in the wtf query.
 
 **Zsh implementation** (added to `~/.zshrc`):
 ```zsh
 # wtf auto-trigger on command not found
 command_not_found_handler() {
-    local cmd=$1
+    local cmd=$1  # First argument is the command that wasn't found
     echo "Command not found: $cmd"
     if [[ -n "$WTF_AUTO_ON_NOT_FOUND" ]]; then
         wtf "command not found: $cmd"
@@ -1006,7 +1021,7 @@ export WTF_AUTO_ON_NOT_FOUND=1
 ```bash
 # wtf auto-trigger on command not found
 command_not_found_handle() {
-    local cmd=$1
+    local cmd=$1  # First argument is the command that wasn't found
     echo "Command not found: $cmd"
     if [[ -n "$WTF_AUTO_ON_NOT_FOUND" ]]; then
         wtf "command not found: $cmd"
@@ -1052,20 +1067,24 @@ This removes the hook code from shell configuration files.
 - Agent helps debug based on the error
 
 **On command not found:**
-- User query: `"command not found: {cmd}"`
+- User query: `"command not found: {cmd}"` (command name is included!)
+- The `{cmd}` is passed from the handler's `$1` argument
+- Agent receives the exact command that wasn't found
 - Agent can suggest:
-  - Correct command spelling
+  - Correct command spelling (e.g., "kubeectl" → "kubectl")
   - Installation instructions
   - Alternative commands
   - Check if command is aliased
 
 #### Important Notes
 
-- **Not enabled by default** - users must opt-in with `--setup-hooks`
-- Can be noisy if many commands fail - use environment variables to disable
+- **Not enabled by default** - users must opt-in
+- **Hooks are independent** - set up only error hook, only not-found hook, or both
+- Can be noisy if many commands fail - use environment variables to disable temporarily
 - Agent still follows normal permission flow for running commands
 - Works alongside manual `wtf` invocations
 - Shell history context helps agent understand what went wrong
+- Recommended: Start with `--setup-not-found-hook` (less noisy than error hook)
 
 #### Example Flow
 
