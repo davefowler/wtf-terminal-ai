@@ -635,7 +635,7 @@ On first run, check for API keys in environment variables:
 2. `OPENAI_API_KEY`
 3. `GOOGLE_API_KEY` or `GEMINI_API_KEY`
 
-**If multiple keys found:**
+**If any keys found (one or more):**
 ```
 Welcome to wtf! Let's set up your AI provider.
 
@@ -651,14 +651,18 @@ Which would you like to use?
 Enter choice [1-3]: _
 ```
 
-**If single key found:**
+If only one key found, still show numbered list:
 ```
 Welcome to wtf! Let's set up your AI provider.
 
 Checking for API keys...
 ✓ Found ANTHROPIC_API_KEY
 
-Use this API key? [Y/n]
+Which would you like to use?
+1. Use Anthropic key
+2. Set up a different provider
+
+Enter choice [1-2]: _
 ```
 
 **If no keys found:**
