@@ -900,7 +900,6 @@ wtf [OPTIONS] [QUERY...]
 - `--reset`: Reset configuration to defaults
 - `--setup-error-hook`: Set up shell hook to auto-trigger wtf on command errors
 - `--setup-not-found-hook`: Set up shell hook to auto-trigger wtf on command not found
-- `--setup-hooks`: Set up both error and not-found hooks (convenience command)
 - `--remove-hooks`: Remove all shell integration hooks
 
 ### 8.3 Examples
@@ -930,10 +929,9 @@ wtf --model gpt-4 "explain this docker error"
 # Dry run mode
 wtf --no-execute "fix my git merge"
 
-# Set up shell hooks (optional - separately or both)
-wtf --setup-error-hook        # Only error auto-trigger
-wtf --setup-not-found-hook    # Only command-not-found auto-trigger
-wtf --setup-hooks             # Both hooks
+# Set up shell hooks (optional)
+wtf --setup-error-hook        # Auto-trigger on command errors
+wtf --setup-not-found-hook    # Auto-trigger on command not found
 ```
 
 ### 8.4 Shell Integration (Optional Auto-Triggers)
@@ -945,17 +943,16 @@ These hooks can be set up independently - you might want error auto-trigger but 
 #### Setup
 
 ```bash
-# Set up error auto-trigger only
+# Set up error auto-trigger
 wtf --setup-error-hook
 
-# Set up command-not-found auto-trigger only
+# Set up command-not-found auto-trigger
 wtf --setup-not-found-hook
 
-# Set up both (convenience command)
-wtf --setup-hooks
+# Or set up both by running both commands
 ```
 
-This adds hooks to your shell configuration (`~/.zshrc` or `~/.bashrc`) that automatically trigger wtf in two scenarios:
+These add hooks to your shell configuration (`~/.zshrc` or `~/.bashrc`) that automatically trigger wtf in two scenarios:
 
 1. **Command exits with error** (non-zero exit code)
 2. **Command not found** errors
