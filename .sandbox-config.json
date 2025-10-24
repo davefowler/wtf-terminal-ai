@@ -3,23 +3,38 @@
     "allow": [
       "Edit(.)",
       "Read(.)",
+      "Edit(/tmp)",
+      "Edit(/var/tmp)",
+      "Read(/usr)",
+      "Read(/Library)",
+      "Read(/System/Library)",
       "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:files.pythonhosted.org)",
       "WebFetch(domain:anthropic.com)",
       "WebFetch(domain:openai.com)",
       "WebFetch(domain:googleapis.com)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:api.github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:objects.githubusercontent.com)"
     ],
     "deny": [
       "Edit(~/.ssh)",
       "Edit(~/.aws)",
       "Edit(~/.config/gcloud)",
+      "Edit(~/.bashrc)",
+      "Edit(~/.zshrc)",
+      "Edit(~/.bash_profile)",
       "Read(~/.ssh/id_rsa)",
       "Read(~/.ssh/id_ed25519)",
+      "Read(~/.ssh/id_ecdsa)",
       "Read(~/.aws/credentials)",
-      "Read(~/.config/gcloud)"
+      "Read(~/.aws/config)",
+      "Read(~/.config/gcloud/credentials.db)",
+      "Read(~/.docker/config.json)",
+      "Read(~/.netrc)"
     ]
   },
-  "description": "Sandbox config for wtf-terminal-ai development"
+  "description": "Development-friendly sandbox for wtf-terminal-ai with security guardrails"
 }
 
