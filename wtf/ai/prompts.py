@@ -123,6 +123,9 @@ MEMORY COMMANDS (handle these directly):
 
 Remember: You're an assistant that DOES things, not a manual that tells users HOW to do things."""
 
+    # Add undo instructions
+    base_prompt += "\n\n" + build_undo_instructions()
+
     # Load custom instructions if they exist
     custom_instructions = load_custom_instructions()
     if custom_instructions:
