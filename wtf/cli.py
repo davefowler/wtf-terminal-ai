@@ -2,10 +2,19 @@
 
 import sys
 import argparse
-from typing import Optional
+from typing import Optional, Dict, Any
 from rich.console import Console
+from rich.prompt import Prompt, Confirm
+from rich.panel import Panel
 
 from wtf import __version__
+from wtf.core.config import (
+    config_exists,
+    create_default_config,
+    load_config,
+    save_config,
+    get_config_dir,
+)
 
 console = Console()
 
@@ -160,6 +169,161 @@ def print_version() -> None:
     console.print(f"wtf {__version__}")
 
 
+def run_setup_wizard() -> Dict[str, Any]:
+    """
+    Run the interactive setup wizard.
+
+    Returns:
+        Configuration dictionary with user's choices.
+    """
+    console.print()
+    console.print(Panel.fit(
+        "[bold]Welcome to wtf setup![/bold]\n\n"
+        "Let's get you configured. This will only take a moment.",
+        border_style="cyan"
+    ))
+    console.print()
+
+    # 1. Choose AI provider
+    console.print("[bold]Step 1:[/bold] Choose your AI provider")
+    console.print()
+    console.print("  [cyan]1.[/cyan] Anthropic (Claude)")
+    console.print("  [cyan]2.[/cyan] OpenAI (GPT)")
+    console.print("  [cyan]3.[/cyan] Google (Gemini)")
+    console.print()
+
+    provider_choice = Prompt.ask(
+        "Select provider",
+        choices=["1", "2", "3"],
+        default="1"
+    )
+
+    provider_map = {
+        "1": ("anthropic", "claude-sonnet-3-5-20241022"),
+        "2": ("openai", "gpt-4"),
+        "3": ("google", "gemini-pro")
+    }
+
+    provider, default_model = provider_map[provider_choice]
+
+    # 2. Ask for API key
+    console.print()
+    console.print(f"[bold]Step 2:[/bold] Enter your {provider.capitalize()} API key")
+    console.print()
+
+    # Show where to get the key
+    key_urls = {
+        "anthropic": "https://console.anthropic.com/settings/keys",
+        "openai": "https://platform.openai.com/api-keys",
+        "google": "https://makersuite.google.com/app/apikey"
+    }
+
+    console.print(f"  [dim]Get your API key at: {key_urls[provider]}[/dim]")
+    console.print()
+
+    use_env = Confirm.ask(
+        "Do you want to use an environment variable for the API key? (recommended)",
+        default=True
+    )
+
+    api_key = None
+    key_source = "env"
+
+    if use_env:
+        env_var_map = {
+            "anthropic": "ANTHROPIC_API_KEY",
+            "openai": "OPENAI_API_KEY",
+            "google": "GOOGLE_API_KEY"
+        }
+        env_var = env_var_map[provider]
+        console.print()
+        console.print(f"[green]✓[/green] Set the [cyan]{env_var}[/cyan] environment variable with your API key")
+        console.print(f"  [dim]Example: export {env_var}='your-api-key-here'[/dim]")
+    else:
+        console.print()
+        api_key = Prompt.ask(
+            "Enter your API key",
+            password=True
+        )
+        key_source = "config"
+        console.print("[yellow]⚠[/yellow]  API key will be stored in [cyan]~/.config/wtf/config.json[/cyan]")
+
+    # 3. Choose model
+    console.print()
+    console.print(f"[bold]Step 3:[/bold] Choose your default model")
+    console.print()
+
+    models_by_provider = {
+        "anthropic": [
+            "claude-sonnet-3-5-20241022",
+            "claude-opus-3-5-20241022",
+            "claude-haiku-3-5-20241022"
+        ],
+        "openai": [
+            "gpt-4",
+            "gpt-4-turbo",
+            "gpt-3.5-turbo"
+        ],
+        "google": [
+            "gemini-pro",
+            "gemini-pro-vision"
+        ]
+    }
+
+    models = models_by_provider[provider]
+    for i, model in enumerate(models, 1):
+        is_default = model == default_model
+        marker = " [cyan](recommended)[/cyan]" if is_default else ""
+        console.print(f"  [cyan]{i}.[/cyan] {model}{marker}")
+
+    console.print()
+    model_choice = Prompt.ask(
+        "Select model",
+        choices=[str(i) for i in range(1, len(models) + 1)],
+        default="1"
+    )
+
+    selected_model = models[int(model_choice) - 1]
+
+    # Create config
+    config = {
+        "version": "0.1.0",
+        "api": {
+            "provider": provider,
+            "key_source": key_source,
+            "key": api_key,
+            "model": selected_model
+        },
+        "behavior": {
+            "auto_execute_allowlist": True,
+            "auto_allow_readonly": True,
+            "context_history_size": 5,
+            "verbose": False,
+            "default_permission": "ask"
+        },
+        "shell": {
+            "type": "zsh",  # Will be detected later
+            "history_file": "~/.zsh_history"
+        }
+    }
+
+    # Save config
+    console.print()
+    create_default_config()
+    save_config(config)
+
+    console.print()
+    console.print(Panel.fit(
+        "[bold green]✓ Setup complete![/bold green]\n\n"
+        f"Configuration saved to [cyan]{get_config_dir()}[/cyan]\n\n"
+        "You're ready to use wtf!",
+        border_style="green"
+    ))
+    console.print()
+
+    return config
+
+
 def main() -> None:
     """Main entry point for wtf CLI."""
     # Custom argument parser that doesn't exit on unknown args
@@ -204,7 +368,7 @@ def main() -> None:
         sys.exit(0)
 
     if args.setup:
-        console.print("[yellow]Not implemented yet[/yellow]")
+        run_setup_wizard()
         sys.exit(0)
 
     if args.setup_error_hook:
@@ -218,6 +382,13 @@ def main() -> None:
     if args.remove_hooks:
         console.print("[yellow]Not implemented yet[/yellow]")
         sys.exit(0)
+
+    # Check if setup is needed (first run)
+    if not config_exists():
+        console.print()
+        console.print("[yellow]⚠[/yellow]  No configuration found. Running setup wizard...")
+        console.print()
+        run_setup_wizard()
 
     # Handle query
     if args.query:
