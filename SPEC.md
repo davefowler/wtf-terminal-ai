@@ -3629,87 +3629,39 @@ The questions people actually ask, plus a few we made up.
 
 It tries.
 
-Sometimes it succeeds. Sometimes it suggests things. Sometimes it admits it 
-doesn't know and tells you to Google it like everyone else.
-
-The goal is to handle common terminal tasks, fix errors, and undo mistakes. It's 
-not sentient. Yet.
 
 ---
 
-## What does wtf stand for?
+## Can wtf do {x}?
 
-No one really knows.
+Try asking it.  It's an AI super powered question answering, taske execution tool.  Why are you still looking up things in help documentation like it's 2008? 
 
-The project started when someone typed `wtf` after a particularly confusing error
-message, and here we are. The acronym came later. The frustration came first.
+---
 
-### Popular Theories
+## What does 'wtf' stand for?
 
-The development team has received numerous suggestions. None have been confirmed.
-All are equally valid.
+Like the question of what happens after we die, a lot of people claim to know the answer to this question, but the truth is - no one really knows.  Its a random combination of letters many of us just found ourselves smashing into our keyboards when we got frustrated.  
 
-**The Optimists:**
-- **Why That Failed** - For people who believe in learning from mistakes. Cute.
-- **Where's The Fix** - Assumes there's always a fix. Bold assumption.
-- **Workflow Triage Facilitator** - Someone's been reading too many enterprise whitepapers.
-- **Wasn't That Fantastic** - For the rare occasions when things work on the first try.
+Some popular theories are:
 
-**The Realists:**
-- **What's The Fault** - Direct. Honest. Blames no one specifically. Everyone generally.
-- **Why The Fiasco** - Acknowledges that sometimes it's not just a failure, it's a *situation*.
-- **Workload Troubleshooting Framework** - Technically accurate. Boring, but accurate.
+	1.	Why That Failed
+	2.	Whilt Thou Fix
+	3.	Workflow Triage Facilitator
+	4.	Wretched Terminal Futility
+	5.	Why The Fiasco
+	6.	What’s The Fault
+	7.	Why Ted Kennedy
+	8.	Wasn’t That Fantastic
+	9.	Workload Troubleshooting Framework
+	10.	Wandering Through Futility
 
-**The Pessimists (Our Personal Favorites):**
-- **Wretched Terminal Futility** - A bit dramatic, but have you tried configuring webpack lately?
-- **Why Try, Fleshling** - From the Marvin school of motivational speaking.
-- **Wandering Through Futility** - The feeling of reading man pages at 2am, distilled into three words.
-
-### The Official Stance
-
-The official stance is that wtf stands for whatever you need it to stand for in 
-the moment:
-
-- `git push` failed? **Why That Failed**
-- Docker won't start? **Wretched Terminal Futility**  
-- Tests finally pass? **Wasn't That Fantastic**
-- Dependency hell? **Wandering Through Futility**
-- Fixed it yourself? **Workflow Triage Facilitator**
-
-The acronym is Schrödinger's abbreviation. It's simultaneously all of these and
-none of these until you observe your terminal breaking, at which point it
-collapses into whichever meaning causes you the most existential dread.
-
-### What It Actually Stands For
-
-Fine. If you absolutely must know, the working title during development was
-**"What's The Fail"** but that sounded too much like a 2010 meme, so we pivoted
-to aggressive ambiguity.
-
-But between you and this documentation page, we like to think it stands for:
-
-**"Well, That's Fixable"**
-
-Because despite the snark and the sarcasm and the general acknowledgment that
-software is held together with duct tape and prayers, most things in the terminal
-*are* fixable. You just need something to help you figure out how.
-
-That's what this does.
+Some are frustrated with this un-answer.  But we recommend that you attempt to find joy in the fact that because there is no answer you have the pleasure, adventure and freedom of choosing your own!
 
 ---
 
 ## Is wtf my friend?
 
 Why don't you try asking it?
-
-```bash
-$ wtf are you my friend?
-```
-
-See what happens. We're not going to spoil it.
-
-(But yes, probably. It remembers your preferences and tries to help. That's more
-than most software does.)
 
 ---
 
@@ -3734,6 +3686,8 @@ isn't going anywhere. That's as permanent as software gets.
 Yes.  We send it to whatever AI provider you configure (OpenAI, Anthropic, etc.).  Where do they send it and what do they do with it?  We don't claim to know.
 
 wtf doesn't have its own servers or hardrives or anything anywere.  It has no where to send anything, and it really doesn't care wtf you're doing.
+
+If AI providers bother you (they should), wtf works great with local run models as well.  We use [Simon Willison's llm](https://github.com/simonw/llm) under the hood - so whatever it supports wtf should.
 
 ---
 

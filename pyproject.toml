@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wtf-ai"
+version = "0.1.0"
+description = "A command-line AI assistant that provides contextual help based on terminal history"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "wtf-ai contributors"}
+]
+keywords = ["cli", "ai", "assistant", "terminal", "shell"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: User Interfaces",
+    "Topic :: System :: Shells",
+]
+
+dependencies = [
+    "anthropic>=0.18.0",
+    "openai>=1.12.0",
+    "google-generativeai>=0.3.0",
+    "llm>=0.13.0",
+    "rich>=13.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+]
+
+[project.scripts]
+wtf = "wtf.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/username/wtf-terminal-ai"
+Documentation = "https://wtf-ai.dev"
+Repository = "https://github.com/username/wtf-terminal-ai"
+Issues = "https://github.com/username/wtf-terminal-ai/issues"
+
+[tool.setuptools]
+packages = ["wtf"]

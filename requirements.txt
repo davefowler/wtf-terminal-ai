@@ -1,0 +1,5 @@
+anthropic>=0.18.0
+openai>=1.12.0
+google-generativeai>=0.3.0
+llm>=0.13.0
+rich>=13.7.0
