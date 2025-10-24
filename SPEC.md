@@ -3731,44 +3731,60 @@ isn't going anywhere. That's as permanent as software gets.
 
 ## Does wtf send my data anywhere?
 
-Only to whatever AI provider you configure (OpenAI, Anthropic, etc.). 
+Yes.  We send it to whatever AI provider you configure (OpenAI, Anthropic, etc.).  Where do they send it and what do they do with it?  We don't claim to know.
 
-wtf doesn't have its own servers. It doesn't phone home. It doesn't collect 
-telemetry. Your shell history, your commands, your embarrassing typos - all of 
-that stays on your machine.
-
-The only data leaving your computer is what gets sent to the AI API to generate
-responses. And that's just the context needed to answer your question (recent 
-commands, error messages, git status, etc.).
-
-You're in control. Always.
+wtf doesn't have its own servers or hardrives or anything anywere.  It has no where to send anything, and it really doesn't care wtf you're doing.
 
 ---
 
 ## Can I use wtf with local/offline AI models?
 
-Not in v0.1, but it's planned for v0.2.
+Yes! The `llm` library supports local models through plugins, so wtf should work with
+them out of the box.
 
-The `llm` library we use supports local models, so adding support is mostly a
-matter of configuration and testing. If you want this, open an issue and we'll
-prioritize it.
+**Install a local model plugin:**
 
-For now, you need an API key for OpenAI, Anthropic, or Google.
+```bash
+# Ollama (recommended for local models)
+llm install llm-ollama
+ollama pull llama3.2
+
+# GPT4All
+llm install llm-gpt4all
+
+# MLX (Apple Silicon)
+llm install llm-mlx
+```
+
+**Then just use it:**
+
+```bash
+wtf --model llama3.2 "explain this error"
+```
+
+Or set it as your default in `~/.config/wtf/config.json`:
+
+```json
+{
+  "ai": {
+    "default_model": "llama3.2"
+  }
+}
+```
+
+**Note:** Local models are typically slower and less capable than cloud APIs, but they're:
+- ✅ Free (no API costs)
+- ✅ Private (no data leaves your machine)
+- ✅ Work offline
+- ❌ Slower to respond
+- ❌ Generally less accurate than GPT-4/Claude
+
+Since we're using `llm` as our AI backend, any model that works with `llm` should
+work with wtf. No special code needed on our end - the `llm` library handles all
+the plugin discovery and model routing automatically.
 
 ---
 
-## Why is it called 'wtf' instead of something more... professional?
-
-Because honesty is professional.
-
-When something breaks in the terminal, "wtf" is what everyone thinks. Might as 
-well be what they type too.
-
-Also, memorable names matter. You'll remember "wtf" a lot easier than 
-"terminal-ai-assistant-framework" or whatever corporate nonsense we could have
-called it.
-
----
 
 ## Does wtf work on Windows?
 

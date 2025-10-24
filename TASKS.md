@@ -239,13 +239,26 @@ rich>=13.7.0
 **What `client.py` needs:**
 - `query_ai(prompt, model=None, stream=True)` → generator or string
 - Uses `llm` library (Simon Willison's package)
-- Loads API keys from config
+- Loads API keys from config (or uses `llm`'s own config)
 - Handles streaming responses
 - Falls back to non-streaming if not supported
+
+**Implementation note:**
+The `llm` library handles:
+- All API provider differences (Anthropic, OpenAI, Google)
+- Local model support via plugins (no special code needed)
+- API key management (can use `llm keys set` or our config)
+- Streaming, rate limiting, retries
+
+We just need a thin wrapper that:
+1. Calls `llm.get_model(model_name)`
+2. Calls `model.prompt(prompt, stream=True)`
+3. Yields/returns the response
 
 **Acceptance criteria:**
 - [ ] Can query Anthropic Claude
 - [ ] Can query OpenAI GPT
+- [ ] Can query local models (if user has plugins installed)
 - [ ] Returns streaming response (generator)
 - [ ] Handles non-streaming fallback
 - [ ] Respects model override from config
