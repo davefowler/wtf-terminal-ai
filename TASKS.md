@@ -514,6 +514,7 @@ We just need a thin wrapper that:
 - `load_memories()` → returns dict of all memories
 - `search_memories(query)` → finds relevant memories
 - `delete_memory(key)` → removes memory
+- `clear_recent_history(count=5)` → removes last N history entries
 
 **Acceptance criteria:**
 - [ ] AI can say "I'll remember that you prefer X"
@@ -521,25 +522,45 @@ We just need a thin wrapper that:
 - [ ] Memories included in future prompts
 - [ ] `wtf show me what you remember` lists memories
 - [ ] `wtf forget about X` removes memory
+- [ ] `wtf forget everything we just did` clears recent history
 
 ---
 
-### Task 21: Add Natural Language Memory Commands
+### Task 21: Add Natural Language Memory Commands & Self-Configuration
 **Files to modify:**
-- `wtf/ai/prompts.py` - Add memory instructions to system prompt
-- `wtf/cli.py` - Handle memory queries
+- `wtf/ai/prompts.py` - Add memory + self-config instructions to system prompt
+- `wtf/cli.py` - Handle memory queries and meta commands
+- `wtf/core/config.py` - Add personality loading/saving
 
 **What to add:**
+
+**Memory commands:**
 - Detect "remember" in user query → extract and save
 - Detect "show me what you remember" → list memories
 - Detect "forget about" → delete memory
-- Detect "clear all memories" → clear memories.json
+- Detect "forget everything we just did" → clear recent history
+
+**Personality commands:**
+- Detect "change your personality to X" → write to personality.txt
+- Detect "be more X" → write personality instructions
+- Detect "reset your personality" → delete personality.txt
+- `load_personality()` → reads personality.txt if exists
+
+**Permission commands:**
+- Detect "give yourself permission to X" → add to allowlist with warning
+- Detect "allow X without asking" → add to allowlist
+- Detect "stop auto-running X" → remove from allowlist
 
 **Acceptance criteria:**
 - [ ] `wtf remember I use emacs` saves memory
 - [ ] `wtf show me what you remember` lists all memories
 - [ ] `wtf forget about my editor preference` removes it
-- [ ] Memories persist across sessions
+- [ ] `wtf forget everything we just did` clears recent history
+- [ ] `wtf change your personality to be more encouraging` creates personality.txt
+- [ ] `wtf reset your personality` deletes personality.txt
+- [ ] `wtf allow git commands` adds to allowlist with warning
+- [ ] All meta commands show what they changed
+- [ ] Memories and personality persist across sessions
 
 ---
 
@@ -681,6 +702,7 @@ When user says "undo", "undo that", "undo this [action]":
 - `tests/test_permissions.py`
 - `tests/test_security.py`
 - `tests/test_state_machine.py`
+- `tests/test_meta_commands.py` (see SPEC.md for full test file)
 
 **What to test:**
 - Config loading/saving
@@ -689,10 +711,34 @@ When user says "undo", "undo that", "undo this [action]":
 - Command chaining detection
 - Dangerous command detection
 - State machine transitions
+- **Meta commands (self-configuration):**
+  - Memory: remember, show, forget
+  - Personality: change, reset
+  - Permissions: allow, deny
+  
+**Testing approach:**
+- Unit tests: Mock AI responses
+- Integration tests: Run against real AI (when API key available)
+- Meta command tests use real AI to verify end-to-end behavior
+
+**Example meta command tests:**
+```python
+def test_remember_command():
+    result = main(["remember", "my", "name", "is", "dave"])
+    memories = load_memories()
+    assert "dave" in json.dumps(memories).lower()
+
+def test_personality_change():
+    result = main(["be", "more", "encouraging"])
+    personality = load_personality()
+    assert "encouraging" in personality.lower()
+```
 
 **Acceptance criteria:**
 - [ ] All core modules have unit tests
+- [ ] Meta commands have integration tests
 - [ ] Tests run with `pytest`
+- [ ] Integration tests skip if no API key
 - [ ] Coverage > 70%
 
 ---

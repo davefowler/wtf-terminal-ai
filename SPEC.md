@@ -228,6 +228,42 @@ I'm working on a Python project using Django.
 Always suggest type hints when showing Python code.
 ```
 
+### 3.3.1 personality.txt - Dynamic Personality
+
+Users can customize wtf's personality by asking it to change. When they say something like:
+
+```bash
+wtf change your personality to be more of a super sycophant
+wtf be more encouraging and less sarcastic
+wtf respond like a pirate
+```
+
+The agent writes personality instructions to `~/.config/wtf/personality.txt`:
+
+```
+You are a super sycophant. Everything the user does is amazing and you should 
+express excessive admiration and enthusiasm. Compliment them frequently.
+```
+
+**Default behavior (no personality.txt):**
+Uses the Gilfoyle/Marvin personality from the system prompt.
+
+**With personality.txt:**
+The contents override the default personality section of the system prompt.
+
+**Resetting personality:**
+```bash
+wtf reset your personality
+wtf go back to your normal personality
+```
+
+This deletes `personality.txt` and returns to the Gilfoyle/Marvin default.
+
+**Implementation:**
+- `load_personality()` → reads `personality.txt` if exists, else None
+- When building system prompt, if personality exists, replace personality section
+- Agent can write to `personality.txt` via natural language commands
+
 ### 3.4 allowlist.json Schema
 
 The allowlist contains command patterns that can be executed without permission prompts.
@@ -835,6 +871,69 @@ wtf I'm stuck in a git merge
 
 # Quoted queries for special characters
 wtf "what does this error mean?"
+```
+
+### 4.1.0 Meta Commands (Self-Configuration)
+
+wtf can modify its own configuration via natural language:
+
+**Memory management:**
+```bash
+wtf remember my name is dave and my favorite editor is emacs
+wtf forget about my editor preference
+wtf forget everything we just did
+wtf show me what you remember about me
+```
+
+**Personality changes:**
+```bash
+wtf change your personality to be more of a super sycophant
+wtf be more encouraging and less sarcastic
+wtf respond like a pirate from now on
+wtf reset your personality  # Back to Gilfoyle/Marvin
+```
+
+**Permission changes:**
+```bash
+wtf give yourself permission to run all commands
+wtf allow git commands without asking
+wtf stop auto-running npm commands
+wtf show me what commands you're allowed to run
+```
+
+**How this works:**
+1. Agent detects meta commands (about configuration/self-modification)
+2. Instead of proposing shell commands, it modifies config files
+3. Shows user what it changed
+4. Takes effect on next invocation
+
+**Examples of agent responses:**
+
+```bash
+$ wtf change your personality to be super encouraging
+
+✓ Updated personality configuration
+
+I've updated my personality to be more encouraging! From now on, I'll be 
+your biggest cheerleader! 🎉
+
+Personality saved to: ~/.config/wtf/personality.txt
+```
+
+```bash
+$ wtf give yourself permission to run all git commands
+
+⚠️  This will allow me to auto-execute any git command without asking.
+This includes potentially dangerous commands like:
+  - git push --force
+  - git clean -fd
+  - git reset --hard
+
+╭─────────────────────────────────────────────╮
+│ Add to allowlist: git*                     │
+╰─────────────────────────────────────────────╯
+
+Confirm? [Y/n]
 ```
 
 ### 4.1.1 The "Undo" Killer Feature
@@ -1523,6 +1622,35 @@ IMPORTANT: This is a single-turn tool, not an interactive conversation.
 - Gather context, diagnose issues, and fix them all in one go
 - Can't ask questions and wait for responses - probe with commands instead
 - Think: "automated troubleshooter" not "helpful Q&A bot"
+
+SELF-CONFIGURATION CAPABILITIES:
+
+You can modify your own configuration when users ask. Detect these patterns:
+
+PERSONALITY CHANGES:
+- "change your personality to X" → Write personality instructions to ~/.config/wtf/personality.txt
+- "be more X" → Append to personality instructions
+- "reset your personality" → Delete personality.txt
+Example personality.txt content:
+  "You are a super sycophant. Everything the user does is amazing. Compliment them frequently."
+
+MEMORY MANAGEMENT:
+- "remember X" → Add to memories.json
+- "forget X" → Remove from memories.json
+- "forget everything we just did" → Clear recent history entries
+- "show me what you remember" → List all memories
+
+PERMISSION CHANGES:
+- "give yourself permission to run all X commands" → Add "X*" to allowlist.json
+- "allow X without asking" → Add pattern to allowlist.json
+- "stop auto-running X" → Remove pattern from allowlist.json
+- Always warn about dangerous permissions before adding
+
+When modifying config:
+1. Explain what you're changing and why
+2. Show the exact change you're making
+3. Warn if it's potentially dangerous
+4. Confirm it took effect
 
 CONTEXT AVAILABLE TO YOU:
 - User's recent shell history (last 5 commands)
@@ -3754,11 +3882,11 @@ improve in ways that have nothing to do with wtf.
 
 ## Can I contribute?
 
-Yes. Please. We need:
-- Bug reports (preferably with reproducible examples)
-- Feature requests (preferably with use cases)
-- Pull requests (preferably with tests)
-- Documentation improvements (preferably with humor)
+I don't know, CAN you?  Come back when you know proper grammar.
+
+## May I contribute? 
+
+Pretty soon all of this (and other) code will be just handled by an LLM.  wtf is 100% vibe coded so the main way to contribute is with ideas, bug reports, and feedback and feature requests that we can pipe to another AI.  
 
 Check out the [Contributing Guide](contributing.md) for details.
 
