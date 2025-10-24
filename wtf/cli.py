@@ -2,11 +2,14 @@
 
 import os
 import sys
+import re
 import argparse
-from typing import Optional, Dict, Any
+import llm
+from typing import Optional, Dict, Any, List
 from rich.console import Console
 from rich.prompt import Prompt, Confirm
 from rich.panel import Panel
+from rich.table import Table
 
 from wtf import __version__
 from wtf.core.config import (
@@ -16,30 +19,12 @@ from wtf.core.config import (
     save_config,
     get_config_dir,
 )
-from wtf.context.shell import get_shell_history, build_history_context, detect_shell
+from wtf.context.shell import get_shell_history, detect_shell
 from wtf.context.git import get_git_status
 from wtf.context.env import get_environment_context, build_tool_env_context
 from wtf.ai.prompts import build_system_prompt, build_context_prompt
-from wtf.ai.client import query_ai_safe, query_ai_with_tools
-from wtf.ai.errors import (
-    InvalidAPIKeyError,
-    NetworkError,
-    RateLimitError,
-)
-from wtf.ai.response_parser import extract_commands
-from wtf.core.permissions import (
-    load_allowlist,
-    load_denylist,
-    should_auto_execute,
-    prompt_for_permission,
-    add_to_allowlist
-)
-from wtf.core.executor import execute_command
-from wtf.conversation.state import (
-    ConversationState,
-    ConversationContext,
-    ConversationStateMachine,
-)
+from wtf.ai.client import query_ai_with_tools
+from wtf.ai.errors import InvalidAPIKeyError, NetworkError, RateLimitError
 from wtf.conversation.memory import (
     load_memories,
     save_memory,
@@ -54,7 +39,6 @@ from wtf.setup.hooks import (
     remove_hooks,
     show_hook_info,
 )
-from wtf.context.shell import detect_shell
 
 console = Console()
 
@@ -224,62 +208,108 @@ def run_setup_wizard() -> Dict[str, Any]:
     ))
     console.print()
 
-    # 1. Choose AI provider
-    console.print("[bold]Step 1:[/bold] Choose your AI provider")
+    # 1. List available models from llm
+    console.print("[bold]Step 1:[/bold] Choose a model")
     console.print()
-    console.print("  [cyan]1.[/cyan] Anthropic (Claude)")
-    console.print("  [cyan]2.[/cyan] OpenAI (GPT)")
-    console.print("  [cyan]3.[/cyan] Google (Gemini)")
+    console.print("[dim]Discovering available models...[/dim]")
     console.print()
 
-    provider_choice = Prompt.ask(
-        "Select provider",
-        choices=["1", "2", "3"],
+    # Get all models from llm library
+    available_models = list(llm.get_models())
+
+    if not available_models:
+        console.print("[red]No models found![/red]")
+        console.print("Install model plugins: [cyan]llm install llm-claude-3[/cyan]")
+        sys.exit(1)
+
+    # Group by provider (parse from model class name or model_id)
+    grouped = {}
+    for model in available_models:
+        # Get provider from model class name (e.g., "OpenAIChat" -> "OpenAI")
+        provider_name = model.__class__.__name__.replace("Chat", "").replace("Model", "")
+        if provider_name not in grouped:
+            grouped[provider_name] = []
+        grouped[provider_name].append(model.model_id)
+
+    # Show popular models first
+    popular = [
+        ("claude-3.5-sonnet", "Anthropic Claude 3.5 Sonnet (recommended)"),
+        ("gpt-4o", "OpenAI GPT-4o"),
+        ("gpt-4o-mini", "OpenAI GPT-4o Mini (fast & cheap)"),
+        ("claude-3-opus", "Anthropic Claude 3 Opus"),
+        ("gemini-1.5-pro", "Google Gemini 1.5 Pro"),
+    ]
+
+    # Show popular models that are available
+    model_choices = []
+    for model_id, description in popular:
+        if any(model_id in models for models in grouped.values()):
+            model_choices.append((model_id, description))
+
+    # Show them
+    for i, (model_id, description) in enumerate(model_choices, 1):
+        console.print(f"  [cyan]{i}.[/cyan] {description}")
+
+    # Add option to see all
+    console.print(f"  [cyan]{len(model_choices) + 1}.[/cyan] See all available models")
+    console.print()
+
+    choice = Prompt.ask(
+        "Select model",
+        choices=[str(i) for i in range(1, len(model_choices) + 2)],
         default="1"
     )
 
-    provider_map = {
-        "1": ("anthropic", "claude-3.5-sonnet"),
-        "2": ("openai", "gpt-4o"),
-        "3": ("google", "gemini-1.5-pro")
-    }
+    choice_idx = int(choice) - 1
 
-    provider, default_model = provider_map[provider_choice]
+    if choice_idx == len(model_choices):
+        # Show all models grouped by provider
+        console.print()
+        console.print("[bold]All Available Models:[/bold]")
+        console.print()
 
-    # 2. Ask for API key
+        all_models = []
+        for provider, models in sorted(grouped.items()):
+            console.print(f"[bold]{provider}:[/bold]")
+            for model_id in sorted(models)[:5]:  # Show first 5 per provider
+                all_models.append(model_id)
+                console.print(f"  [cyan]{len(all_models)}.[/cyan] {model_id}")
+            if len(models) > 5:
+                console.print(f"  [dim]...and {len(models) - 5} more[/dim]")
+            console.print()
+
+        console.print()
+        choice = Prompt.ask(
+            "Select model number",
+            choices=[str(i) for i in range(1, len(all_models) + 1)],
+            default="1"
+        )
+        selected_model = all_models[int(choice) - 1]
+    else:
+        selected_model = model_choices[choice_idx][0]
+
     console.print()
-    console.print(f"[bold]Step 2:[/bold] Enter your {provider.capitalize()} API key")
+    console.print(f"[green]✓[/green] Selected: [cyan]{selected_model}[/cyan]")
+
+    # 2. Configure API key
+    console.print()
+    console.print(f"[bold]Step 2:[/bold] Configure API access")
+    console.print()
+    console.print("[dim]The llm library handles API keys. You can:[/dim]")
+    console.print("  [dim]1. Set environment variables (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.)[/dim]")
+    console.print("  [dim]2. Use: [cyan]llm keys set <provider>[/cyan][/dim]")
+    console.print("  [dim]3. Let wtf store it (not recommended)[/dim]")
     console.print()
 
-    # Show where to get the key
-    key_urls = {
-        "anthropic": "https://console.anthropic.com/settings/keys",
-        "openai": "https://platform.openai.com/api-keys",
-        "google": "https://makersuite.google.com/app/apikey"
-    }
-
-    console.print(f"  [dim]Get your API key at: {key_urls[provider]}[/dim]")
-    console.print()
-
-    use_env = Confirm.ask(
-        "Do you want to use an environment variable for the API key? (recommended)",
+    use_llm_keys = Confirm.ask(
+        "Use llm's key management? (recommended)",
         default=True
     )
 
     api_key = None
-    key_source = "env"
+    key_source = "llm"  # New: delegate to llm library
 
-    if use_env:
-        env_var_map = {
-            "anthropic": "ANTHROPIC_API_KEY",
-            "openai": "OPENAI_API_KEY",
-            "google": "GOOGLE_API_KEY"
-        }
-        env_var = env_var_map[provider]
-        console.print()
-        console.print(f"[green]✓[/green] Set the [cyan]{env_var}[/cyan] environment variable with your API key")
-        console.print(f"  [dim]Example: export {env_var}='your-api-key-here'[/dim]")
-    else:
+    if not use_llm_keys:
         console.print()
         api_key = Prompt.ask(
             "Enter your API key",
@@ -288,52 +318,13 @@ def run_setup_wizard() -> Dict[str, Any]:
         key_source = "config"
         console.print("[yellow]⚠[/yellow]  API key will be stored in [cyan]~/.config/wtf/config.json[/cyan]")
 
-    # 3. Choose model
-    console.print()
-    console.print(f"[bold]Step 3:[/bold] Choose your default model")
-    console.print()
-
-    # Model IDs for llm library
-    models_by_provider = {
-        "anthropic": [
-            "claude-3.5-sonnet",
-            "claude-3-opus",
-            "claude-3-haiku"
-        ],
-        "openai": [
-            "gpt-4o",
-            "gpt-4o-mini",
-            "gpt-4-turbo"
-        ],
-        "google": [
-            "gemini-1.5-pro",
-            "gemini-1.5-flash"
-        ]
-    }
-
-    models = models_by_provider[provider]
-    for i, model in enumerate(models, 1):
-        is_default = model == default_model
-        marker = " [cyan](recommended)[/cyan]" if is_default else ""
-        console.print(f"  [cyan]{i}.[/cyan] {model}{marker}")
-
-    console.print()
-    model_choice = Prompt.ask(
-        "Select model",
-        choices=[str(i) for i in range(1, len(models) + 1)],
-        default="1"
-    )
-
-    selected_model = models[int(model_choice) - 1]
-
     # Create config
     config = {
         "version": "0.1.0",
         "api": {
-            "provider": provider,
+            "model": selected_model,
             "key_source": key_source,
-            "key": api_key,
-            "model": selected_model
+            "key": api_key
         },
         "behavior": {
             "auto_execute_allowlist": True,
@@ -365,9 +356,145 @@ def run_setup_wizard() -> Dict[str, Any]:
     return config
 
 
-def handle_memory_command(query: str) -> bool:
+def _show_memories() -> None:
+    """Display all stored memories."""
+    memories = load_memories()
+    if not memories:
+        console.print("[yellow]No memories stored yet.[/yellow]")
+        console.print()
+        console.print("You can teach me your preferences:")
+        console.print("  [cyan]wtf remember I use emacs[/cyan]")
+        console.print("  [cyan]wtf remember I prefer npm over yarn[/cyan]")
+    else:
+        console.print("[bold]Memories:[/bold]")
+        console.print()
+        for key, memory_data in memories.items():
+            value = memory_data.get("value")
+            timestamp = memory_data.get("timestamp", "")
+            if timestamp:
+                timestamp = timestamp.split("T")[0]  # Just date
+            console.print(f"  [cyan]{key}:[/cyan] {value} [dim]({timestamp})[/dim]")
+        console.print()
+
+
+def _clear_memories() -> None:
+    """Clear all stored memories."""
+    memories = load_memories()
+    if not memories:
+        console.print("[yellow]No memories to clear.[/yellow]")
+    else:
+        clear_memories()
+        console.print("[green]✓[/green] Cleared all memories.")
+    console.print()
+
+
+def _remember_fact(query: str) -> None:
+    """Parse and remember a fact from the query."""
+    # Remove "remember" and common filler words
+    fact = query.lower()
+    for word in ["wtf", "remember", "that", "i", "we", "you"]:
+        fact = re.sub(r'\b' + re.escape(word) + r'\b', '', fact)
+    fact = fact.strip()
+
+    if not fact:
+        console.print("[yellow]What should I remember?[/yellow]")
+        console.print()
+        console.print("Example:")
+        console.print("  [cyan]wtf remember I use emacs[/cyan]")
+        console.print()
+        return
+
+    # Try to extract key-value pair from common patterns
+    key, value = _parse_memory_fact(fact)
+
+    save_memory(key, value)
+    console.print(f"[green]✓[/green] I'll remember: [cyan]{key}[/cyan] = {value}")
+    console.print()
+
+
+def _parse_memory_fact(fact: str) -> tuple[str, str]:
+    """Parse a fact string into key and value.
+
+    Args:
+        fact: The fact to parse (e.g., "use emacs" or "prefer npm over yarn")
+
+    Returns:
+        Tuple of (key, value)
     """
-    Check if query is a memory command and handle it directly.
+    key = None
+    value = None
+
+    if "use" in fact:
+        parts = fact.split("use", 1)
+        if len(parts) == 2:
+            value = parts[1].strip()
+            # Guess key from context
+            if "editor" in fact or "emacs" in value or "vim" in value:
+                key = "editor"
+            elif "package" in fact or "npm" in value or "yarn" in value:
+                key = "package_manager"
+            elif "shell" in fact or "zsh" in value or "bash" in value:
+                key = "shell"
+            elif "python" in fact:
+                key = "python_version"
+            else:
+                key = parts[0].strip().replace(" ", "_") or "preference"
+
+    elif "prefer" in fact:
+        parts = fact.split("prefer", 1)
+        if len(parts) == 2:
+            value = parts[1].strip()
+            # Remove "over X" if present
+            if " over " in value:
+                value = value.split(" over ")[0].strip()
+            key = parts[0].strip().replace(" ", "_") or "preference"
+
+    # If we couldn't parse it, save the whole fact
+    if not key or not value:
+        key = "general"
+        value = fact
+
+    return key, value
+
+
+def _forget_memory(query: str) -> None:
+    """Find and forget a specific memory."""
+    memories = load_memories()
+    if not memories:
+        console.print("[yellow]No memories to forget.[/yellow]")
+        console.print()
+        return
+
+    query_lower = query.lower()
+
+    # Find matching memory keys
+    matches = []
+    for key in memories.keys():
+        if key.lower() in query_lower or any(word in key.lower() for word in query_lower.split()):
+            matches.append(key)
+
+    if not matches:
+        console.print("[yellow]Couldn't find a matching memory to forget.[/yellow]")
+        console.print()
+        console.print("Current memories:")
+        for key in memories.keys():
+            console.print(f"  - {key}")
+        console.print()
+    elif len(matches) == 1:
+        delete_memory(matches[0])
+        console.print(f"[green]✓[/green] Forgot about: [cyan]{matches[0]}[/cyan]")
+        console.print()
+    else:
+        console.print(f"[yellow]Multiple matches found:[/yellow]")
+        for key in matches:
+            console.print(f"  - {key}")
+        console.print()
+        console.print("Be more specific")
+        console.print()
+
+
+def handle_memory_command(query: str) -> bool:
+    """Check if query is a memory command and handle it.
 
     Args:
         query: User's query string
@@ -377,133 +504,20 @@ def handle_memory_command(query: str) -> bool:
     """
     query_lower = query.lower().strip()
 
-    # Show memories
     if "show" in query_lower and "remember" in query_lower:
-        memories = load_memories()
-        if not memories:
-            console.print("[yellow]No memories stored yet.[/yellow]")
-            console.print()
-            console.print("You can teach me your preferences:")
-            console.print("  [cyan]wtf remember I use emacs[/cyan]")
-            console.print("  [cyan]wtf remember I prefer npm over yarn[/cyan]")
-        else:
-            console.print("[bold]Memories:[/bold]")
-            console.print()
-            for key, memory_data in memories.items():
-                value = memory_data.get("value")
-                timestamp = memory_data.get("timestamp", "")
-                if timestamp:
-                    timestamp = timestamp.split("T")[0]  # Just date
-                console.print(f"  [cyan]{key}:[/cyan] {value} [dim]({timestamp})[/dim]")
-            console.print()
+        _show_memories()
         return True
 
-    # Clear all memories
     if "clear" in query_lower and "memor" in query_lower:
-        memories = load_memories()
-        if not memories:
-            console.print("[yellow]No memories to clear.[/yellow]")
-        else:
-            clear_memories()
-            console.print("[green]✓[/green] Cleared all memories.")
-        console.print()
+        _clear_memories()
         return True
 
-    # Remember something
     if "remember" in query_lower and not ("show" in query_lower or "what" in query_lower):
-        # Extract the fact to remember
-        # Remove "remember" and common words (as whole words, not substrings!)
-        import re
-        fact = query.lower()
-        # Use word boundaries to only remove whole words
-        for word in ["wtf", "remember", "that", "i", "we", "you"]:
-            fact = re.sub(r'\b' + re.escape(word) + r'\b', '', fact)
-        fact = fact.strip()
-
-        if not fact:
-            console.print("[yellow]What should I remember?[/yellow]")
-            console.print()
-            console.print("Example:")
-            console.print("  [cyan]wtf remember I use emacs[/cyan]")
-            console.print()
-            return True
-
-        # Try to extract a key-value pair
-        # Simple heuristics: "use X", "prefer X", etc.
-        key = None
-        value = None
-
-        if "use" in fact:
-            parts = fact.split("use", 1)
-            if len(parts) == 2:
-                value = parts[1].strip()
-                # Guess key from context
-                if "editor" in fact or "emacs" in value or "vim" in value:
-                    key = "editor"
-                elif "package" in fact or "npm" in value or "yarn" in value:
-                    key = "package_manager"
-                elif "shell" in fact or "zsh" in value or "bash" in value:
-                    key = "shell"
-                elif "python" in fact:
-                    key = "python_version"
-                else:
-                    # Generic key from first word before "use"
-                    key = parts[0].strip().replace(" ", "_") or "preference"
-
-        elif "prefer" in fact:
-            parts = fact.split("prefer", 1)
-            if len(parts) == 2:
-                value = parts[1].strip()
-                # Remove "over X" if present
-                if " over " in value:
-                    value = value.split(" over ")[0].strip()
-                key = parts[0].strip().replace(" ", "_") or "preference"
-
-        # If we couldn't parse it, save the whole fact
-        if not key or not value:
-            key = "general"
-            value = fact
-
-        save_memory(key, value)
-        console.print(f"[green]✓[/green] I'll remember: [cyan]{key}[/cyan] = {value}")
-        console.print()
+        _remember_fact(query)
         return True
 
-    # Forget specific memory
     if "forget" in query_lower:
-        # Try to extract what to forget
-        memories = load_memories()
-        if not memories:
-            console.print("[yellow]No memories to forget.[/yellow]")
-            console.print()
-            return True
-
-        # Find matching memory keys
-        matches = []
-        for key in memories.keys():
-            if key.lower() in query_lower or any(word in key.lower() for word in query_lower.split()):
-                matches.append(key)
-
-        if not matches:
-            console.print("[yellow]Couldn't find a matching memory to forget.[/yellow]")
-            console.print()
-            console.print("Current memories:")
-            for key in memories.keys():
-                console.print(f"  - {key}")
-            console.print()
-        elif len(matches) == 1:
-            delete_memory(matches[0])
-            console.print(f"[green]✓[/green] Forgot about: [cyan]{matches[0]}[/cyan]")
-            console.print()
-        else:
-            console.print(f"[yellow]Multiple matches found:[/yellow]")
-            for key in matches:
-                console.print(f"  - {key}")
-            console.print()
-            console.print("Be more specific, or delete them manually:")
-            console.print("  [cyan]wtf forget about <specific thing>[/cyan]")
-            console.print()
-
+        _forget_memory(query)
         return True
 
     return False
@@ -610,332 +624,6 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
             "exit_code": 1
         })
 
-
-def handle_query(query: str, config: Dict[str, Any]) -> None:
-    """
-    Handle a user query using the conversation state machine.
-
-    Args:
-        query: User's query string
-        config: Configuration dictionary
-    """
-    # Check if this is a direct memory command
-    if handle_memory_command(query):
-        return
-
-    # Gather context with visual feedback
-    with console.status("🔍 Gathering context...", spinner="dots"):
-        # Gather shell history
-        commands, failure_reason = get_shell_history(
-            count=config.get('behavior', {}).get('context_history_size', 5)
-        )
-        shell_type = detect_shell()
-
-        # Build history context (handles failures gracefully)
-        if not commands:
-            history_context = build_history_context(commands, failure_reason, shell_type)
-            # For now, just use empty list - in full implementation we'd include the error context
-            commands = []
-
-        # Gather git status
-        git_status = get_git_status()
-
-        # Gather environment context
-        env_context = get_environment_context()
-
-        # Load memories
-        memories = load_memories()
-
-    # Load permission lists
-    allowlist = load_allowlist()
-    denylist = load_denylist()
-
-    # Create conversation context
-    context = ConversationContext(
-        user_query=query,
-        cwd=".",  # Current working directory
-        shell_history=commands,
-        git_status=git_status,
-        env_context=env_context,
-        config=config,
-        allowlist=allowlist,
-        denylist=denylist,
-    )
-
-    # Create and run state machine
-    state_machine = ConversationStateMachine(context)
-
-    try:
-        # Execute state machine with CLI integration
-        _run_state_machine_with_cli(state_machine, config, memories)
-
-        # Log conversation to history after successful completion
-        if state_machine.state == ConversationState.COMPLETE:
-            append_to_history({
-                "query": query,
-                "response": context.ai_response,
-                "commands": [cmd.get("command", "") for cmd in context.commands_to_run],
-                "exit_code": 0  # TODO: track actual exit codes
-            })
-
-    except Exception as e:
-        console.print()
-        console.print(f"[red]Error:[/red] {e}")
-        console.print()
-        if "API" in str(e) or "key" in str(e).lower():
-            console.print("[yellow]Tip:[/yellow] Make sure your API key is set correctly.")
-            console.print("  Run [cyan]wtf --setup[/cyan] to reconfigure.")
-
-        # Log error conversation
-        append_to_history({
-            "query": query,
-            "response": str(e),
-            "commands": [],
-            "exit_code": 1
-        })
-
-
-def _run_state_machine_with_cli(
-    state_machine: ConversationStateMachine,
-    config: Dict[str, Any],
-    memories: Dict[str, Any]
-) -> None:
-    """
-    Run the state machine with CLI integration for user interaction.
-
-    Args:
-        state_machine: The conversation state machine to run
-        config: Configuration dictionary
-        memories: User memories/preferences
-    """
-    context = state_machine.context
-
-    while not state_machine.is_complete():
-        current_state = state_machine.state
-
-        if current_state == ConversationState.INITIALIZING:
-            # Context already gathered, just transition
-            state_machine._execute_current_state()
-
-        elif current_state == ConversationState.QUERYING_AI:
-            # Build prompt and query AI
-            system_prompt = build_system_prompt()
-            context_prompt = build_context_prompt(
-                context.shell_history,
-                context.git_status,
-                context.env_context,
-                memories
-            )
-
-            # Include previous command outputs if this is a follow-up query
-            output_context = ""
-            if context.command_outputs:
-                output_context = "\n\nCOMMAND OUTPUTS YOU JUST RAN:\n"
-                for i, output in enumerate(context.command_outputs):
-                    cmd = context.commands_to_run[i]['command'] if i < len(context.commands_to_run) else "unknown"
-                    output_context += f"\n$ {cmd}\n{output}\n"
-
-            # Different prompt for iterations vs initial query
-            if context.iteration_count > 0:
-                full_prompt = f"""{system_prompt}
-
-CONTEXT:
-{context_prompt}{output_context}
-
-ORIGINAL USER QUERY:
-{context.user_query}
-
-The commands above have been executed. Please analyze their output and provide your response or run additional commands if needed."""
-            else:
-                full_prompt = f"""{system_prompt}
-
-CONTEXT:
-{context_prompt}{output_context}
-
-USER QUERY:
-{context.user_query}
-
-Please help the user with their query. If you need to run commands, propose them clearly."""
-
-            # Query AI with status indicator and retry logic
-            console.print()
-            with console.status("🤖 Thinking...", spinner="dots"):
-                try:
-                    response = query_ai_safe(full_prompt, config, stream=False, max_retries=3)
-                    context.ai_response = response
-                except InvalidAPIKeyError as e:
-                    state_machine.error = e
-                    state_machine.state = ConversationState.ERROR
-                    console.print()
-                    console.print(f"[red]✗ API Key Error:[/red] {str(e)}")
-                    console.print()
-                    console.print("To fix this:")
-                    if e.provider:
-                        key_urls = {
-                            "anthropic": "https://console.anthropic.com/settings/keys",
-                            "openai": "https://platform.openai.com/api-keys",
-                            "google": "https://makersuite.google.com/app/apikey"
-                        }
-                        url = key_urls.get(e.provider, "")
-                        if url:
-                            console.print(f"  1. Get a valid API key from: [cyan]{url}[/cyan]")
-                    console.print("  2. Run [cyan]wtf --setup[/cyan] to configure")
-                    console.print()
-                    raise
-                except RateLimitError as e:
-                    state_machine.error = e
-                    state_machine.state = ConversationState.ERROR
-                    console.print()
-                    console.print(f"[yellow]⚠ Rate Limit:[/yellow] {str(e)}")
-                    console.print()
-                    if e.retry_after:
-                        console.print(f"Please wait {e.retry_after} seconds before trying again.")
-                    else:
-                        console.print("Please wait a moment before trying again.")
-                    console.print()
-                    raise
-                except NetworkError as e:
-                    state_machine.error = e
-                    state_machine.state = ConversationState.ERROR
-                    console.print()
-                    console.print(f"[red]✗ Network Error:[/red] {str(e)}")
-                    console.print()
-                    console.print("Possible fixes:")
-                    console.print("  - Check your internet connection")
-                    console.print("  - Try again in a moment")
-                    console.print("  - Check if the AI service is experiencing issues")
-                    console.print()
-                    raise
-                except Exception as e:
-                    state_machine.error = e
-                    state_machine.state = ConversationState.ERROR
-                    raise
-
-            console.print()
-
-            # Transition to next state
-            state_machine._execute_current_state()
-
-        elif current_state == ConversationState.STREAMING_RESPONSE:
-            # Parse commands from response
-            commands_to_run = extract_commands(context.ai_response)
-            context.commands_to_run = commands_to_run
-
-            # Show AI response
-            console.print(context.ai_response)
-            console.print()
-
-            # Transition to next state
-            state_machine._execute_current_state()
-
-        elif current_state == ConversationState.AWAITING_PERMISSION:
-            # Get current command to execute
-            cmd_dict = context.commands_to_run[context.current_command_index]
-            cmd = cmd_dict['command']
-            explanation = cmd_dict.get('explanation', '')
-            allowlist_pattern = cmd_dict.get('allowlist_pattern', cmd.split()[0] if cmd else '')
-
-            # Check if command should auto-execute, ask, or deny
-            decision = should_auto_execute(cmd, context.allowlist, context.denylist, config)
-
-            if decision == "deny":
-                console.print(f"[red]✗[/red] Command denied (in denylist): [cyan]{cmd}[/cyan]")
-                console.print()
-                # Skip this command
-                context.current_command_index += 1
-                # Check if more commands
-                if context.current_command_index < len(context.commands_to_run):
-                    # Stay in AWAITING_PERMISSION for next command
-                    continue
-                else:
-                    # No more commands
-                    state_machine.state = ConversationState.RESPONDING
-                    continue
-
-            elif decision == "ask":
-                # Prompt for permission
-                permission = prompt_for_permission(cmd, explanation, allowlist_pattern)
-
-                if permission == "no":
-                    console.print("[yellow]Skipped[/yellow]")
-                    console.print()
-                    # Skip this command
-                    context.current_command_index += 1
-                    # Check if more commands
-                    if context.current_command_index < len(context.commands_to_run):
-                        # Stay in AWAITING_PERMISSION for next command
-                        continue
-                    else:
-                        # No more commands
-                        state_machine.state = ConversationState.RESPONDING
-                        continue
-
-                elif permission == "yes_always":
-                    # Add to allowlist
-                    add_to_allowlist(allowlist_pattern)
-                    console.print()
-
-            # Transition to executing (either auto or approved)
-            state_machine._execute_current_state()
-
-        elif current_state == ConversationState.EXECUTING_COMMAND:
-            # Execute the current command
-            cmd_dict = context.commands_to_run[context.current_command_index]
-            cmd = cmd_dict['command']
-
-            # Check decision again for display purposes
-            decision = should_auto_execute(cmd, context.allowlist, context.denylist, config)
-
-            if decision == "auto":
-                console.print(f"[dim]Running:[/dim] [cyan]{cmd}[/cyan]")
-                output, exit_code = execute_command(cmd, show_spinner=False)
-            else:
-                # User approved it
-                output, exit_code = execute_command(cmd)
-
-            # Store output for AI to analyze
-            context.command_outputs.append(output)
-
-            console.print()
-            if output.strip():
-                console.print(output)
-
-            if exit_code != 0:
-                console.print(f"[yellow]Command exited with code {exit_code}[/yellow]")
-
-            console.print()
-
-            # Check if this is the last command in the current batch
-            is_last_command = (context.current_command_index + 1) >= len(context.commands_to_run)
-
-            # If this is the last command and we have command outputs, set flag to requery
-            # so the AI can see the results and decide what to do next
-            if is_last_command and context.command_outputs and context.iteration_count < context.max_iterations:
-                context.needs_requery = True
-
-            # Transition to next state (state machine handles incrementing index)
-            state_machine._execute_current_state()
-
-        elif current_state == ConversationState.PROCESSING_OUTPUT:
-            # AI will analyze command outputs and generate next response
-            # Show status to user
-            console.print("[dim]Analyzing command output...[/dim]")
-            console.print()
-
-            # Transition to QUERYING_AI (state machine handles this)
-            state_machine._execute_current_state()
-
-        elif current_state == ConversationState.RESPONDING:
-            # Final response already shown, just transition to complete
-            state_machine._execute_current_state()
-
-        elif current_state == ConversationState.ERROR:
-            # Error already handled in outer try/catch
-            break
-
-        else:
-            # Unknown state, just transition
-            state_machine._execute_current_state()
 
 
 def main() -> None:
