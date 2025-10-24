@@ -4,6 +4,68 @@
 
 ---
 
+## 🤖 Instructions for AI Agent
+
+**Workflow:**
+1. Read SPEC.md first to understand the full context
+2. Work through tasks in order (1 → 32)
+3. Create/modify files as specified in each task
+4. After completing each task, show me what you did
+5. **Commit after each MILESTONE** (not after each task)
+6. Run the code after each milestone to verify it works
+
+**Git Workflow:**
+- ✅ **DO commit** after completing each milestone (tasks 1-2, 3-4, 5-7, etc.)
+- ✅ **DO push** after each milestone is tested and working
+- ❌ **DON'T commit** after every single task (too granular)
+- ❌ **DON'T push** code that hasn't been tested
+
+**Commit message format:**
+```
+feat: [MILESTONE NAME] - brief description
+
+- Task X: what was done
+- Task Y: what was done
+
+Milestone X/11 complete
+```
+
+**Testing strategy:**
+- After milestone 1: Test that `wtf --help` works
+- After milestone 2: Test that config gets created
+- After milestone 3: Test that context gathering works
+- After milestone 4: Test that AI responds
+- After milestone 5: Test that commands execute with permissions
+- And so on...
+
+**If you get stuck:**
+- Check SPEC.md for implementation details
+- Look at the acceptance criteria
+- Ask me for clarification
+- Don't make up behavior - stick to the spec
+
+**Progress tracking:**
+- At the start of each milestone, say: "Starting Milestone X: [NAME]"
+- After each task, say: "✅ Task X complete"
+- After each milestone, say: "🎉 Milestone X complete. Ready to commit."
+
+**Code quality:**
+- Add type hints to all functions (Python 3.10+)
+- Add docstrings to public functions
+- Keep functions focused and small
+- Extract duplicated logic
+- Use `rich` for all terminal output
+- Handle errors gracefully
+
+**What NOT to do:**
+- Don't skip tasks or milestones
+- Don't deviate from the spec
+- Don't add features not in the spec
+- Don't commit broken code
+- Don't make assumptions - refer to SPEC.md
+
+---
+
 ## 🟢 MILESTONE 1: "Hello World" (Can run wtf --help)
 
 ### Task 1: Initialize Python Project Structure
