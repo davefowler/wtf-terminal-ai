@@ -19,7 +19,7 @@ from wtf.context.shell import get_shell_history, build_history_context, detect_s
 from wtf.context.git import get_git_status
 from wtf.context.env import get_environment_context
 from wtf.ai.prompts import build_system_prompt, build_context_prompt
-from wtf.ai.client import query_ai_safe
+from wtf.ai.client import query_ai_safe, query_ai_with_tools
 from wtf.ai.errors import (
     InvalidAPIKeyError,
     NetworkError,
@@ -499,6 +499,95 @@ def handle_memory_command(query: str) -> bool:
     return False
 
 
+def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
+    """
+    Handle a user query using the tool-based agent approach.
+
+    Simpler than state machine - agent uses tools in a loop.
+
+    Args:
+        query: User's query string
+        config: Configuration dictionary
+    """
+    # Check if this is a direct memory command
+    if handle_memory_command(query):
+        return
+
+    # Gather context
+    with console.status("🔍 Gathering context...", spinner="dots"):
+        commands, _ = get_shell_history(
+            count=config.get('behavior', {}).get('context_history_size', 5)
+        )
+        git_status = get_git_status()
+        env_context = get_environment_context()
+        memories = load_memories()
+
+    # Build prompts
+    system_prompt = build_system_prompt()
+    context_prompt = build_context_prompt(commands, git_status, env_context, memories)
+    full_prompt = f"{context_prompt}\n\nUSER QUERY:\n{query}"
+
+    try:
+        # Query AI with tools
+        console.print()
+        with console.status("🤖 Thinking...", spinner="dots"):
+            result = query_ai_with_tools(
+                prompt=full_prompt,
+                config=config,
+                system_prompt=system_prompt,
+                max_iterations=10
+            )
+
+        # Process tool calls and print outputs
+        console.print()
+        for tool_call in result["tool_calls"]:
+            tool_name = tool_call["name"]
+            tool_result = tool_call["result"]
+
+            # Check if this tool's output should be printed to user
+            should_print = tool_result.get("should_print", False)
+
+            if should_print and tool_name == "run_command":
+                # Print command output
+                cmd = tool_call["arguments"]["command"]
+                output = tool_result.get("output", "")
+                exit_code = tool_result.get("exit_code", 0)
+
+                console.print(f"[dim]$[/dim] [cyan]{cmd}[/cyan]")
+                if output.strip():
+                    console.print(output)
+                if exit_code != 0:
+                    console.print(f"[yellow]Exit code: {exit_code}[/yellow]")
+                console.print()
+
+        # Print final agent response
+        console.print(result["response"])
+        console.print()
+
+        # Log to history
+        append_to_history({
+            "query": query,
+            "response": result["response"],
+            "commands": [tc["arguments"].get("command", "") for tc in result["tool_calls"] if tc["name"] == "run_command"],
+            "exit_code": 0
+        })
+
+    except Exception as e:
+        console.print()
+        console.print(f"[red]Error:[/red] {e}")
+        console.print()
+        if "API" in str(e) or "key" in str(e).lower():
+            console.print("[yellow]Tip:[/yellow] Make sure your API key is set correctly.")
+            console.print("  Run [cyan]wtf --setup[/cyan] to reconfigure.")
+
+        append_to_history({
+            "query": query,
+            "response": str(e),
+            "commands": [],
+            "exit_code": 1
+        })
+
+
 def handle_query(query: str, config: Dict[str, Any]) -> None:
     """
     Handle a user query using the conversation state machine.
@@ -903,7 +992,8 @@ def main() -> None:
     # Handle query
     if args.query:
         query = ' '.join(args.query)
-        handle_query(query, config)
+        # Use tool-based approach (simpler than state machine)
+        handle_query_with_tools(query, config)
     else:
         # No query provided - analyze recent context
         console.print("[yellow]Analyzing recent commands...[/yellow]")
