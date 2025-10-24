@@ -200,10 +200,16 @@ def query_ai_with_tools(
 
     # Create llm.Tool objects from our tool definitions
     # Wrap tool implementations to handle dict returns
+    import sys
+    debug = os.environ.get('WTF_DEBUG') == '1'
     llm_tools = []
+    if debug:
+        print(f"[DEBUG] Creating tools from {len(get_tool_definitions())} definitions", file=sys.stderr)
     for tool_def in get_tool_definitions():
         tool_name = tool_def["name"]
         tool_impl = TOOLS[tool_name]
+        if debug:
+            print(f"[DEBUG] Registering tool: {tool_name}", file=sys.stderr)
 
         # Wrapper to convert dict returns to strings
         def make_wrapper(func):
@@ -236,6 +242,11 @@ def query_ai_with_tools(
             implementation=make_wrapper(tool_impl)
         )
         llm_tools.append(llm_tool)
+        if debug:
+            print(f"[DEBUG] Tool {tool_name} registered successfully", file=sys.stderr)
+
+    if debug:
+        print(f"[DEBUG] Total tools registered: {len(llm_tools)}", file=sys.stderr)
 
     # Use llm library's built-in tool execution
     # The tools have implementations, so llm will execute them automatically
@@ -247,6 +258,11 @@ def query_ai_with_tools(
     # Track tool usage with callbacks
     def after_tool_call(tool: llm.Tool, tool_call: llm.ToolCall, result: llm.ToolResult):
         """Track tool calls for our records."""
+        debug = os.environ.get('WTF_DEBUG') == '1'
+        if debug:
+            import sys
+            print(f"[DEBUG] after_tool_call FIRED: tool={tool.name}", file=sys.stderr)
+
         # Get the original function result (as dict) by calling it again
         # This is a bit wasteful but ensures we track the proper structure
         tool_func = original_tools.get(tool.name)
@@ -265,22 +281,56 @@ def query_ai_with_tools(
             "iteration": len(all_tool_calls) + 1
         })
 
+        if debug:
+            print(f"[DEBUG] Tracked tool call #{len(all_tool_calls)}: {tool.name}", file=sys.stderr)
+
     try:
         # Create conversation with automatic tool execution
+        debug = os.environ.get('WTF_DEBUG') == '1'
+
+        if debug:
+            import sys
+            print(f"[DEBUG] Creating conversation with {len(llm_tools)} tools", file=sys.stderr)
+            print(f"[DEBUG] Tool names: {[t.name for t in llm_tools]}", file=sys.stderr)
+
         conversation = model_obj.conversation(
             tools=llm_tools,
             after_call=after_tool_call,
             chain_limit=max_iterations  # Limit tool chaining
         )
 
+        if debug:
+            print(f"[DEBUG] Conversation created, has tools: {hasattr(conversation, 'tools')}", file=sys.stderr)
+            print(f"[DEBUG] Conversation tools count: {len(conversation.tools) if hasattr(conversation, 'tools') else 'N/A'}", file=sys.stderr)
+
         # Use chain() for automatic tool execution, not prompt()!
+        import sys
+        debug = os.environ.get('WTF_DEBUG') == '1'
+
+        if debug:
+            print(f"[DEBUG] About to call conversation.chain()", file=sys.stderr)
+            print(f"[DEBUG] Prompt length: {len(prompt)}", file=sys.stderr)
+            print(f"[DEBUG] System prompt length: {len(system_prompt) if system_prompt else 0}", file=sys.stderr)
+
         response = conversation.chain(
             prompt=prompt,
             system=system_prompt
         )
 
+        if debug:
+            print(f"[DEBUG] Chain returned, response type: {type(response)}", file=sys.stderr)
+
+        # response.text() is where tools actually execute!
+        response_text = response.text()
+
+        # NOW tool calls are populated
+        if debug:
+            print(f"[DEBUG] After response.text(), tool calls tracked: {len(all_tool_calls)}", file=sys.stderr)
+            print(f"[DEBUG] Response text length: {len(response_text)}", file=sys.stderr)
+            print(f"[DEBUG] Response preview: {response_text[:100] if response_text else '(empty)'}...", file=sys.stderr)
+
         return {
-            "response": response.text(),
+            "response": response_text,
             "tool_calls": all_tool_calls,
             "iterations": len(all_tool_calls) + 1
         }

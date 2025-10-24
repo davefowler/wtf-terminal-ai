@@ -1,5 +1,6 @@
 """CLI interface for wtf."""
 
+import os
 import sys
 import argparse
 from typing import Optional, Dict, Any
@@ -411,10 +412,12 @@ def handle_memory_command(query: str) -> bool:
     # Remember something
     if "remember" in query_lower and not ("show" in query_lower or "what" in query_lower):
         # Extract the fact to remember
-        # Remove "remember" and common words
+        # Remove "remember" and common words (as whole words, not substrings!)
+        import re
         fact = query.lower()
+        # Use word boundaries to only remove whole words
         for word in ["wtf", "remember", "that", "i", "we", "you"]:
-            fact = fact.replace(word, "")
+            fact = re.sub(r'\b' + re.escape(word) + r'\b', '', fact)
         fact = fact.strip()
 
         if not fact:
@@ -547,16 +550,15 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
 
         # Process tool calls and print outputs
         console.print()
+
+        # Print run_command outputs (user-facing)
         for tool_call in result["tool_calls"]:
             tool_name = tool_call["name"]
             tool_result = tool_call["result"]
 
-            # Check if this tool's output should be printed to user
-            should_print = tool_result.get("should_print", False)
-
-            if should_print and tool_name == "run_command":
-                # Print command output
-                cmd = tool_call["arguments"]["command"]
+            # Only print run_command outputs (internal tools are hidden)
+            if tool_name == "run_command" and tool_result.get("should_print", False):
+                cmd = tool_call["arguments"].get("command", "")
                 output = tool_result.get("output", "")
                 exit_code = tool_result.get("exit_code", 0)
 
@@ -568,7 +570,14 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
                 console.print()
 
         # Print final agent response
-        console.print(result["response"])
+        response_text = result.get("response", "")
+        if response_text:
+            console.print(response_text)
+        else:
+            # Debug: show what we got
+            console.print("[dim]No response text. Debug info:[/dim]")
+            console.print(f"[dim]Tool calls: {len(result['tool_calls'])}[/dim]")
+            console.print(f"[dim]Iterations: {result.get('iterations', 0)}[/dim]")
         console.print()
 
         # Log to history
@@ -1033,6 +1042,9 @@ def main() -> None:
     # Handle query
     if args.query:
         query = ' '.join(args.query)
+        # Set verbose/debug mode via environment variable
+        if args.verbose:
+            os.environ['WTF_DEBUG'] = '1'
         # Use tool-based approach (simpler than state machine)
         handle_query_with_tools(query, config)
     else:
