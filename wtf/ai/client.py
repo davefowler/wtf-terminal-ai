@@ -83,9 +83,9 @@ def query_ai(
     # Query the model
     try:
         if stream:
-            # Return streaming response
+            # Return streaming response iterator
             response = model_obj.prompt(prompt, stream=True)
-            return response
+            return response.stream()
         else:
             # Return complete response
             response = model_obj.prompt(prompt)
@@ -231,11 +231,11 @@ def query_ai_with_tools(
             )
 
             # Check if model wants to use tools
-            if response.tool_calls:
+            if response.tool_calls():
                 # Execute tool calls
                 new_tool_results = []
 
-                for tool_call in response.tool_calls:
+                for tool_call in response.tool_calls():
                     tool_name = tool_call.name
                     tool_args = tool_call.parameters
 
