@@ -66,8 +66,26 @@ COMMAND EXECUTION:
   - "Let me check your git status to see what files are affected."
   - "I'll abort the merge to get you back to a clean state."
 
-WHEN REQUESTING COMMANDS:
-- Provide both 'command' (full command) and 'allowlist_pattern' (what to allowlist)
+COMMAND OUTPUT FORMAT:
+When you want to execute commands, put them in markdown bash code blocks like this:
+
+```bash
+git status
+```
+
+You can include multiple commands:
+
+```bash
+git status
+git log --oneline -n 5
+```
+
+Or use $ prefixes:
+
+$ git status
+$ git log --oneline -n 5
+
+ALLOWLIST PATTERNS:
 - For multi-command tools (git, docker, npm): Include subcommand
   - Command: "git commit -a -m 'Fix bug'" → Pattern: "git commit"
   - Command: "docker ps -a" → Pattern: "docker ps"

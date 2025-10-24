@@ -29,6 +29,11 @@ from wtf.core.permissions import (
     add_to_allowlist
 )
 from wtf.core.executor import execute_command
+from wtf.conversation.state import (
+    ConversationState,
+    ConversationContext,
+    ConversationStateMachine,
+)
 
 console = Console()
 
@@ -341,13 +346,13 @@ def run_setup_wizard() -> Dict[str, Any]:
 
 def handle_query(query: str, config: Dict[str, Any]) -> None:
     """
-    Handle a user query by gathering context and querying AI.
+    Handle a user query using the conversation state machine.
 
     Args:
         query: User's query string
         config: Configuration dictionary
     """
-    # Show status
+    # Gather context with visual feedback
     with console.status("🔍 Gathering context...", spinner="dots"):
         # Gather shell history
         commands, failure_reason = get_shell_history(
@@ -370,71 +375,181 @@ def handle_query(query: str, config: Dict[str, Any]) -> None:
         # TODO: Load memories
         memories = {}
 
-    # Build prompts
-    system_prompt = build_system_prompt()
-    context_prompt = build_context_prompt(commands, git_status, env_context, memories)
-
-    # Combine into full prompt
-    full_prompt = f"""{system_prompt}
-
-CONTEXT:
-{context_prompt}
-
-USER QUERY:
-{query}
-
-Please help the user with their query. If you need to run commands, propose them clearly."""
-
-    # Query AI
-    console.print()
-    with console.status("🤖 Thinking...", spinner="dots"):
-        try:
-            response = query_ai(full_prompt, config, stream=False)
-        except Exception as e:
-            console.print()
-            console.print(f"[red]Error:[/red] {e}")
-            console.print()
-            console.print("[yellow]Tip:[/yellow] Make sure your API key is set correctly.")
-            console.print("  Run [cyan]wtf --setup[/cyan] to reconfigure.")
-            return
-
-    console.print()
-
-    # Parse response for commands
-    commands_to_run = extract_commands(response)
-
-    # If no commands, just show the response
-    if not commands_to_run:
-        console.print(response)
-        return
-
     # Load permission lists
     allowlist = load_allowlist()
     denylist = load_denylist()
 
-    # Show AI response first
-    console.print(response)
-    console.print()
+    # Create conversation context
+    context = ConversationContext(
+        user_query=query,
+        cwd=".",  # Current working directory
+        shell_history=commands,
+        git_status=git_status,
+        env_context=env_context,
+        config=config,
+        allowlist=allowlist,
+        denylist=denylist,
+    )
 
-    # Process each command
-    for cmd_dict in commands_to_run:
-        cmd = cmd_dict['command']
-        explanation = cmd_dict.get('explanation', '')
-        allowlist_pattern = cmd_dict.get('allowlist_pattern', cmd.split()[0])
+    # Create and run state machine
+    state_machine = ConversationStateMachine(context)
 
-        # Check if command should auto-execute, ask, or deny
-        decision = should_auto_execute(cmd, allowlist, denylist, config)
+    try:
+        # Execute state machine with CLI integration
+        _run_state_machine_with_cli(state_machine, config)
+    except Exception as e:
+        console.print()
+        console.print(f"[red]Error:[/red] {e}")
+        console.print()
+        if "API" in str(e) or "key" in str(e).lower():
+            console.print("[yellow]Tip:[/yellow] Make sure your API key is set correctly.")
+            console.print("  Run [cyan]wtf --setup[/cyan] to reconfigure.")
 
-        if decision == "deny":
-            console.print(f"[red]✗[/red] Command denied (in denylist): [cyan]{cmd}[/cyan]")
+
+def _run_state_machine_with_cli(
+    state_machine: ConversationStateMachine,
+    config: Dict[str, Any]
+) -> None:
+    """
+    Run the state machine with CLI integration for user interaction.
+
+    Args:
+        state_machine: The conversation state machine to run
+        config: Configuration dictionary
+    """
+    context = state_machine.context
+
+    while not state_machine.is_complete():
+        current_state = state_machine.state
+
+        if current_state == ConversationState.INITIALIZING:
+            # Context already gathered, just transition
+            state_machine._execute_current_state()
+
+        elif current_state == ConversationState.QUERYING_AI:
+            # Build prompt and query AI
+            system_prompt = build_system_prompt()
+            context_prompt = build_context_prompt(
+                context.shell_history,
+                context.git_status,
+                context.env_context,
+                {}  # memories - TODO: implement
+            )
+
+            # Include previous command outputs if this is a follow-up query
+            output_context = ""
+            if context.command_outputs:
+                output_context = "\n\nPREVIOUS COMMAND OUTPUTS:\n"
+                for i, output in enumerate(context.command_outputs):
+                    output_context += f"\nCommand {i+1} output:\n{output}\n"
+
+            full_prompt = f"""{system_prompt}
+
+CONTEXT:
+{context_prompt}{output_context}
+
+USER QUERY:
+{context.user_query}
+
+Please help the user with their query. If you need to run commands, propose them clearly."""
+
+            # Query AI with status indicator
             console.print()
-            continue
+            with console.status("🤖 Thinking...", spinner="dots"):
+                try:
+                    response = query_ai(full_prompt, config, stream=False)
+                    context.ai_response = response
+                except Exception as e:
+                    state_machine.error = e
+                    state_machine.state = ConversationState.ERROR
+                    raise
 
-        elif decision == "auto":
-            # Auto-execute without asking
-            console.print(f"[dim]Running:[/dim] [cyan]{cmd}[/cyan]")
-            output, exit_code = execute_command(cmd, show_spinner=False)
+            console.print()
 
+            # Transition to next state
+            state_machine._execute_current_state()
+
+        elif current_state == ConversationState.STREAMING_RESPONSE:
+            # Parse commands from response
+            commands_to_run = extract_commands(context.ai_response)
+            context.commands_to_run = commands_to_run
+
+            # Show AI response
+            console.print(context.ai_response)
+            console.print()
+
+            # Transition to next state
+            state_machine._execute_current_state()
+
+        elif current_state == ConversationState.AWAITING_PERMISSION:
+            # Get current command to execute
+            cmd_dict = context.commands_to_run[context.current_command_index]
+            cmd = cmd_dict['command']
+            explanation = cmd_dict.get('explanation', '')
+            allowlist_pattern = cmd_dict.get('allowlist_pattern', cmd.split()[0] if cmd else '')
+
+            # Check if command should auto-execute, ask, or deny
+            decision = should_auto_execute(cmd, context.allowlist, context.denylist, config)
+
+            if decision == "deny":
+                console.print(f"[red]✗[/red] Command denied (in denylist): [cyan]{cmd}[/cyan]")
+                console.print()
+                # Skip this command
+                context.current_command_index += 1
+                # Check if more commands
+                if context.current_command_index < len(context.commands_to_run):
+                    # Stay in AWAITING_PERMISSION for next command
+                    continue
+                else:
+                    # No more commands
+                    state_machine.state = ConversationState.RESPONDING
+                    continue
+
+            elif decision == "ask":
+                # Prompt for permission
+                permission = prompt_for_permission(cmd, explanation, allowlist_pattern)
+
+                if permission == "no":
+                    console.print("[yellow]Skipped[/yellow]")
+                    console.print()
+                    # Skip this command
+                    context.current_command_index += 1
+                    # Check if more commands
+                    if context.current_command_index < len(context.commands_to_run):
+                        # Stay in AWAITING_PERMISSION for next command
+                        continue
+                    else:
+                        # No more commands
+                        state_machine.state = ConversationState.RESPONDING
+                        continue
+
+                elif permission == "yes_always":
+                    # Add to allowlist
+                    add_to_allowlist(allowlist_pattern)
+                    console.print()
+
+            # Transition to executing (either auto or approved)
+            state_machine._execute_current_state()
+
+        elif current_state == ConversationState.EXECUTING_COMMAND:
+            # Execute the current command
+            cmd_dict = context.commands_to_run[context.current_command_index]
+            cmd = cmd_dict['command']
+
+            # Check decision again for display purposes
+            decision = should_auto_execute(cmd, context.allowlist, context.denylist, config)
+
+            if decision == "auto":
+                console.print(f"[dim]Running:[/dim] [cyan]{cmd}[/cyan]")
+                output, exit_code = execute_command(cmd, show_spinner=False)
+            else:
+                # User approved it
+                output, exit_code = execute_command(cmd)
+
+            # Store output
+            context.command_outputs.append(output)
+
+            console.print()
             if output.strip():
                 console.print(output)
 
@@ -443,31 +558,20 @@ Please help the user with their query. If you need to run commands, propose them
 
             console.print()
 
-        else:  # decision == "ask"
-            # Prompt for permission
-            permission = prompt_for_permission(cmd, explanation, allowlist_pattern)
+            # Transition to next state (state machine handles incrementing index)
+            state_machine._execute_current_state()
 
-            if permission == "no":
-                console.print("[yellow]Skipped[/yellow]")
-                console.print()
-                continue
+        elif current_state == ConversationState.RESPONDING:
+            # Final response already shown, just transition to complete
+            state_machine._execute_current_state()
 
-            elif permission == "yes_always":
-                # Add to allowlist
-                add_to_allowlist(allowlist_pattern)
-                console.print()
+        elif current_state == ConversationState.ERROR:
+            # Error already handled in outer try/catch
+            break
 
-            # Execute the command
-            output, exit_code = execute_command(cmd)
-
-            console.print()
-            if output.strip():
-                console.print(output)
-
-            if exit_code != 0:
-                console.print(f"[yellow]Command exited with code {exit_code}[/yellow]")
-
-            console.print()
+        else:
+            # Unknown state, just transition
+            state_machine._execute_current_state()
 
 
 def main() -> None:
