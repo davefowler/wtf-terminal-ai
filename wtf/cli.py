@@ -15,6 +15,11 @@ from wtf.core.config import (
     save_config,
     get_config_dir,
 )
+from wtf.context.shell import get_shell_history, build_history_context, detect_shell
+from wtf.context.git import get_git_status
+from wtf.context.env import get_environment_context
+from wtf.ai.prompts import build_system_prompt, build_context_prompt
+from wtf.ai.client import query_ai
 
 console = Console()
 
@@ -199,9 +204,9 @@ def run_setup_wizard() -> Dict[str, Any]:
     )
 
     provider_map = {
-        "1": ("anthropic", "claude-sonnet-3-5-20241022"),
-        "2": ("openai", "gpt-4"),
-        "3": ("google", "gemini-pro")
+        "1": ("anthropic", "claude-3.5-sonnet"),
+        "2": ("openai", "gpt-4o"),
+        "3": ("google", "gemini-1.5-pro")
     }
 
     provider, default_model = provider_map[provider_choice]
@@ -253,20 +258,21 @@ def run_setup_wizard() -> Dict[str, Any]:
     console.print(f"[bold]Step 3:[/bold] Choose your default model")
     console.print()
 
+    # Model IDs for llm library
     models_by_provider = {
         "anthropic": [
-            "claude-sonnet-3-5-20241022",
-            "claude-opus-3-5-20241022",
-            "claude-haiku-3-5-20241022"
+            "claude-3.5-sonnet",
+            "claude-3-opus",
+            "claude-3-haiku"
         ],
         "openai": [
-            "gpt-4",
-            "gpt-4-turbo",
-            "gpt-3.5-turbo"
+            "gpt-4o",
+            "gpt-4o-mini",
+            "gpt-4-turbo"
         ],
         "google": [
-            "gemini-pro",
-            "gemini-pro-vision"
+            "gemini-1.5-pro",
+            "gemini-1.5-flash"
         ]
     }
 
@@ -322,6 +328,67 @@ def run_setup_wizard() -> Dict[str, Any]:
     console.print()
 
     return config
+
+
+def handle_query(query: str, config: Dict[str, Any]) -> None:
+    """
+    Handle a user query by gathering context and querying AI.
+
+    Args:
+        query: User's query string
+        config: Configuration dictionary
+    """
+    # Show status
+    with console.status("🔍 Gathering context...", spinner="dots"):
+        # Gather shell history
+        commands, failure_reason = get_shell_history(
+            count=config.get('behavior', {}).get('context_history_size', 5)
+        )
+        shell_type = detect_shell()
+
+        # Build history context (handles failures gracefully)
+        if not commands:
+            history_context = build_history_context(commands, failure_reason, shell_type)
+            # For now, just use empty list - in full implementation we'd include the error context
+            commands = []
+
+        # Gather git status
+        git_status = get_git_status()
+
+        # Gather environment context
+        env_context = get_environment_context()
+
+        # TODO: Load memories
+        memories = {}
+
+    # Build prompts
+    system_prompt = build_system_prompt()
+    context_prompt = build_context_prompt(commands, git_status, env_context, memories)
+
+    # Combine into full prompt
+    full_prompt = f"""{system_prompt}
+
+CONTEXT:
+{context_prompt}
+
+USER QUERY:
+{query}
+
+Please help the user with their query. If you need to run commands, propose them clearly."""
+
+    # Query AI
+    console.print()
+    with console.status("🤖 Thinking...", spinner="dots"):
+        try:
+            response = query_ai(full_prompt, config, stream=False)
+            console.print()
+            console.print(response)
+        except Exception as e:
+            console.print()
+            console.print(f"[red]Error:[/red] {e}")
+            console.print()
+            console.print("[yellow]Tip:[/yellow] Make sure your API key is set correctly.")
+            console.print("  Run [cyan]wtf --setup[/cyan] to reconfigure.")
 
 
 def main() -> None:
@@ -390,13 +457,27 @@ def main() -> None:
         console.print()
         run_setup_wizard()
 
+    # Load config
+    try:
+        config = load_config()
+    except Exception as e:
+        console.print(f"[red]Error loading config:[/red] {e}")
+        console.print("Run [cyan]wtf --setup[/cyan] to reconfigure.")
+        sys.exit(1)
+
     # Handle query
     if args.query:
         query = ' '.join(args.query)
-        console.print(f"[yellow]Not implemented yet[/yellow]: {query}")
+        handle_query(query, config)
     else:
-        # No query provided
-        console.print("[yellow]Not implemented yet[/yellow]")
+        # No query provided - analyze recent context
+        console.print("[yellow]Analyzing recent commands...[/yellow]")
+        # For now, show a helpful message
+        console.print()
+        console.print("No query provided. Try:")
+        console.print("  [cyan]wtf \"your question here\"[/cyan]")
+        console.print("  [cyan]wtf undo[/cyan]")
+        console.print("  [cyan]wtf --help[/cyan]")
 
     sys.exit(0)
 
