@@ -34,6 +34,14 @@ from wtf.conversation.state import (
     ConversationContext,
     ConversationStateMachine,
 )
+from wtf.conversation.memory import (
+    load_memories,
+    save_memory,
+    delete_memory,
+    clear_memories,
+    search_memories,
+)
+from wtf.conversation.history import append_to_history
 
 console = Console()
 
@@ -344,6 +352,148 @@ def run_setup_wizard() -> Dict[str, Any]:
     return config
 
 
+def handle_memory_command(query: str) -> bool:
+    """
+    Check if query is a memory command and handle it directly.
+
+    Args:
+        query: User's query string
+
+    Returns:
+        True if handled as memory command, False otherwise
+    """
+    query_lower = query.lower().strip()
+
+    # Show memories
+    if "show" in query_lower and "remember" in query_lower:
+        memories = load_memories()
+        if not memories:
+            console.print("[yellow]No memories stored yet.[/yellow]")
+            console.print()
+            console.print("You can teach me your preferences:")
+            console.print("  [cyan]wtf remember I use emacs[/cyan]")
+            console.print("  [cyan]wtf remember I prefer npm over yarn[/cyan]")
+        else:
+            console.print("[bold]Memories:[/bold]")
+            console.print()
+            for key, memory_data in memories.items():
+                value = memory_data.get("value")
+                timestamp = memory_data.get("timestamp", "")
+                if timestamp:
+                    timestamp = timestamp.split("T")[0]  # Just date
+                console.print(f"  [cyan]{key}:[/cyan] {value} [dim]({timestamp})[/dim]")
+            console.print()
+        return True
+
+    # Clear all memories
+    if "clear" in query_lower and "memor" in query_lower:
+        memories = load_memories()
+        if not memories:
+            console.print("[yellow]No memories to clear.[/yellow]")
+        else:
+            clear_memories()
+            console.print("[green]✓[/green] Cleared all memories.")
+        console.print()
+        return True
+
+    # Remember something
+    if "remember" in query_lower and not ("show" in query_lower or "what" in query_lower):
+        # Extract the fact to remember
+        # Remove "remember" and common words
+        fact = query.lower()
+        for word in ["wtf", "remember", "that", "i", "we", "you"]:
+            fact = fact.replace(word, "")
+        fact = fact.strip()
+
+        if not fact:
+            console.print("[yellow]What should I remember?[/yellow]")
+            console.print()
+            console.print("Example:")
+            console.print("  [cyan]wtf remember I use emacs[/cyan]")
+            console.print()
+            return True
+
+        # Try to extract a key-value pair
+        # Simple heuristics: "use X", "prefer X", etc.
+        key = None
+        value = None
+
+        if "use" in fact:
+            parts = fact.split("use", 1)
+            if len(parts) == 2:
+                value = parts[1].strip()
+                # Guess key from context
+                if "editor" in fact or "emacs" in value or "vim" in value:
+                    key = "editor"
+                elif "package" in fact or "npm" in value or "yarn" in value:
+                    key = "package_manager"
+                elif "shell" in fact or "zsh" in value or "bash" in value:
+                    key = "shell"
+                elif "python" in fact:
+                    key = "python_version"
+                else:
+                    # Generic key from first word before "use"
+                    key = parts[0].strip().replace(" ", "_") or "preference"
+
+        elif "prefer" in fact:
+            parts = fact.split("prefer", 1)
+            if len(parts) == 2:
+                value = parts[1].strip()
+                # Remove "over X" if present
+                if " over " in value:
+                    value = value.split(" over ")[0].strip()
+                key = parts[0].strip().replace(" ", "_") or "preference"
+
+        # If we couldn't parse it, save the whole fact
+        if not key or not value:
+            key = "general"
+            value = fact
+
+        save_memory(key, value)
+        console.print(f"[green]✓[/green] I'll remember: [cyan]{key}[/cyan] = {value}")
+        console.print()
+        return True
+
+    # Forget specific memory
+    if "forget" in query_lower:
+        # Try to extract what to forget
+        memories = load_memories()
+        if not memories:
+            console.print("[yellow]No memories to forget.[/yellow]")
+            console.print()
+            return True
+
+        # Find matching memory keys
+        matches = []
+        for key in memories.keys():
+            if key.lower() in query_lower or any(word in key.lower() for word in query_lower.split()):
+                matches.append(key)
+
+        if not matches:
+            console.print("[yellow]Couldn't find a matching memory to forget.[/yellow]")
+            console.print()
+            console.print("Current memories:")
+            for key in memories.keys():
+                console.print(f"  - {key}")
+            console.print()
+        elif len(matches) == 1:
+            delete_memory(matches[0])
+            console.print(f"[green]✓[/green] Forgot about: [cyan]{matches[0]}[/cyan]")
+            console.print()
+        else:
+            console.print(f"[yellow]Multiple matches found:[/yellow]")
+            for key in matches:
+                console.print(f"  - {key}")
+            console.print()
+            console.print("Be more specific, or delete them manually:")
+            console.print("  [cyan]wtf forget about <specific thing>[/cyan]")
+            console.print()
+
+        return True
+
+    return False
+
+
 def handle_query(query: str, config: Dict[str, Any]) -> None:
     """
     Handle a user query using the conversation state machine.
@@ -352,6 +502,10 @@ def handle_query(query: str, config: Dict[str, Any]) -> None:
         query: User's query string
         config: Configuration dictionary
     """
+    # Check if this is a direct memory command
+    if handle_memory_command(query):
+        return
+
     # Gather context with visual feedback
     with console.status("🔍 Gathering context...", spinner="dots"):
         # Gather shell history
@@ -372,8 +526,8 @@ def handle_query(query: str, config: Dict[str, Any]) -> None:
         # Gather environment context
         env_context = get_environment_context()
 
-        # TODO: Load memories
-        memories = {}
+        # Load memories
+        memories = load_memories()
 
     # Load permission lists
     allowlist = load_allowlist()
@@ -396,7 +550,17 @@ def handle_query(query: str, config: Dict[str, Any]) -> None:
 
     try:
         # Execute state machine with CLI integration
-        _run_state_machine_with_cli(state_machine, config)
+        _run_state_machine_with_cli(state_machine, config, memories)
+
+        # Log conversation to history after successful completion
+        if state_machine.state == ConversationState.COMPLETE:
+            append_to_history({
+                "query": query,
+                "response": context.ai_response,
+                "commands": [cmd.get("command", "") for cmd in context.commands_to_run],
+                "exit_code": 0  # TODO: track actual exit codes
+            })
+
     except Exception as e:
         console.print()
         console.print(f"[red]Error:[/red] {e}")
@@ -405,10 +569,19 @@ def handle_query(query: str, config: Dict[str, Any]) -> None:
             console.print("[yellow]Tip:[/yellow] Make sure your API key is set correctly.")
             console.print("  Run [cyan]wtf --setup[/cyan] to reconfigure.")
 
+        # Log error conversation
+        append_to_history({
+            "query": query,
+            "response": str(e),
+            "commands": [],
+            "exit_code": 1
+        })
+
 
 def _run_state_machine_with_cli(
     state_machine: ConversationStateMachine,
-    config: Dict[str, Any]
+    config: Dict[str, Any],
+    memories: Dict[str, Any]
 ) -> None:
     """
     Run the state machine with CLI integration for user interaction.
@@ -416,6 +589,7 @@ def _run_state_machine_with_cli(
     Args:
         state_machine: The conversation state machine to run
         config: Configuration dictionary
+        memories: User memories/preferences
     """
     context = state_machine.context
 
@@ -433,7 +607,7 @@ def _run_state_machine_with_cli(
                 context.shell_history,
                 context.git_status,
                 context.env_context,
-                {}  # memories - TODO: implement
+                memories
             )
 
             # Include previous command outputs if this is a follow-up query
