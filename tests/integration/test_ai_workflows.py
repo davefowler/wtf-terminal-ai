@@ -10,7 +10,7 @@ import pytest
 from wtf.cli import handle_query_with_tools
 from wtf.core.config import load_config
 from wtf.conversation.memory import clear_memories
-from wtf.ai.client import query_ai
+from wtf.ai.client import query_ai_with_tools
 
 
 # Skip all tests in this module if no API key is available
@@ -48,7 +48,8 @@ Does the response meet the criteria? Respond with ONLY "YES" or "NO".
 """
 
     try:
-        judgment = query_ai(judge_prompt, config, stream=False).strip().upper()
+        result = query_ai_with_tools(judge_prompt, config)
+        judgment = result.get("response", "").strip().upper()
         return "YES" in judgment
     except Exception:
         # If judging fails, be lenient
