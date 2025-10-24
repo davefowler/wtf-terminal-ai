@@ -360,7 +360,7 @@ def _show_memories() -> None:
     """Display all stored memories."""
     memories = load_memories()
     if not memories:
-        console.print("[yellow]No memories stored yet.[/yellow]")
+        console.print("[yellow]No memories stored yet[/yellow]")
         console.print()
         console.print("You can teach me your preferences:")
         console.print("  [cyan]wtf remember I use emacs[/cyan]")
@@ -381,7 +381,7 @@ def _clear_memories() -> None:
     """Clear all stored memories."""
     memories = load_memories()
     if not memories:
-        console.print("[yellow]No memories to clear.[/yellow]")
+        console.print("[yellow]No memories to clear[/yellow]")
     else:
         clear_memories()
         console.print("[green]✓[/green] Cleared all memories.")
@@ -397,7 +397,7 @@ def _remember_fact(query: str) -> None:
     fact = fact.strip()
 
     if not fact:
-        console.print("[yellow]What should I remember?[/yellow]")
+        console.print("[yellow]What should I remember[/yellow]")
         console.print()
         console.print("Example:")
         console.print("  [cyan]wtf remember I use emacs[/cyan]")
@@ -461,7 +461,7 @@ def _forget_memory(query: str) -> None:
     """Find and forget a specific memory."""
     memories = load_memories()
     if not memories:
-        console.print("[yellow]No memories to forget.[/yellow]")
+        console.print("[yellow]No memories to forget[/yellow]")
         console.print()
         return
 
@@ -474,7 +474,7 @@ def _forget_memory(query: str) -> None:
             matches.append(key)
 
     if not matches:
-        console.print("[yellow]Couldn't find a matching memory to forget.[/yellow]")
+        console.print("[yellow]Couldn't find a matching memory to forget[/yellow]")
         console.print()
         console.print("Current memories:")
         for key in memories.keys():
@@ -521,6 +521,31 @@ def handle_memory_command(query: str) -> bool:
         return True
 
     return False
+
+
+def _setup_hook(hook_name: str, setup_func) -> None:
+    """Helper to set up a shell hook with consistent messaging.
+
+    Args:
+        hook_name: Human-readable hook name (e.g., "error", "command-not-found")
+        setup_func: The setup function to call
+    """
+    from wtf.setup.hooks import get_shell_config_file
+
+    shell = detect_shell()
+    console.print()
+    console.print(f"[cyan]Setting up {hook_name} hook for {shell}...[/cyan]")
+    success, message = setup_func(shell)
+
+    if success:
+        console.print(f"[green]✓[/green] {message}")
+        console.print()
+        console.print("[yellow]Restart your shell or run:[/yellow]")
+        config_file = get_shell_config_file(shell)
+        console.print(f"  [cyan]source {config_file}[/cyan]")
+    else:
+        console.print(f"[red]✗[/red] {message}")
+    console.print()
 
 
 def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
@@ -626,9 +651,8 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
 
 
 
-def main() -> None:
-    """Main entry point for wtf CLI."""
-    # Custom argument parser that doesn't exit on unknown args
+def _parse_arguments():
+    """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         add_help=False,  # We'll handle --help ourselves
         description="wtf - Because working in the terminal often gets you asking wtf"
@@ -649,62 +673,73 @@ def main() -> None:
     # Collect the rest as the user query
     parser.add_argument('query', nargs='*', help='Your query for wtf')
 
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    # Handle flags
-    if args.help:
-        print_help()
+
+def _handle_config_flag() -> None:
+    """Handle --config flag to show configuration file location."""
+    config_dir = get_config_dir()
+    config_file = config_dir / "config.json"
+    console.print()
+    console.print(f"[bold]Configuration:[/bold]")
+    console.print()
+    console.print(f"  Config directory: [cyan]{config_dir}[/cyan]")
+    console.print(f"  Config file: [cyan]{config_file}[/cyan]")
+    console.print()
+    if config_file.exists():
+        console.print("[dim]To edit, open the file in your editor or run:[/dim]")
+        console.print(f"  [cyan]$EDITOR {config_file}[/cyan]")
+    else:
+        console.print("[yellow]No config file found - run 'wtf --setup' to create one[/yellow]")
+    console.print()
+    sys.exit(0)
+
+
+def _handle_reset_flag() -> None:
+    """Handle --reset flag to delete all configuration."""
+    from pathlib import Path
+    import shutil
+
+    config_dir = Path(get_config_dir())
+
+    if not config_dir.exists():
+        console.print("[yellow]No config found to reset[/yellow]")
         sys.exit(0)
 
-    if args.version:
-        print_version()
+    console.print()
+    console.print("[bold red]⚠ Warning:[/bold red] This will delete ALL wtf configuration")
+    console.print()
+    console.print("This includes:")
+    console.print("  • API keys and model settings")
+    console.print("  • Memories (learned preferences)")
+    console.print("  • Conversation history")
+    console.print("  • Allowlist/denylist")
+    console.print()
+
+    if not Confirm.ask("[bold]Are you sure?[/bold]", default=False):
+        console.print("[yellow]Cancelled[/yellow]")
         sys.exit(0)
 
-    # Handle other flags (not implemented yet)
-    if args.config:
-        console.print("[yellow]Not implemented yet[/yellow]")
-        sys.exit(0)
+    try:
+        shutil.rmtree(config_dir)
+        console.print()
+        console.print(f"[green]✓[/green] Deleted {config_dir}")
+        console.print()
+        console.print("Run [cyan]wtf --setup[/cyan] to reconfigure.")
+        console.print()
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+    sys.exit(0)
 
-    if args.reset:
-        console.print("[yellow]Not implemented yet[/yellow]")
-        sys.exit(0)
 
-    if args.setup:
-        run_setup_wizard()
-        sys.exit(0)
-
+def _handle_hooks_flags(args) -> None:
+    """Handle hook-related flags (--setup-error-hook, --setup-not-found-hook, --remove-hooks)."""
     if args.setup_error_hook:
-        shell = detect_shell()
-        console.print()
-        console.print(f"[cyan]Setting up error hook for {shell}...[/cyan]")
-        success, message = setup_error_hook(shell)
-        if success:
-            console.print(f"[green]✓[/green] {message}")
-            console.print()
-            console.print("[yellow]Restart your shell or run:[/yellow]")
-            from wtf.setup.hooks import get_shell_config_file
-            config_file = get_shell_config_file(shell)
-            console.print(f"  [cyan]source {config_file}[/cyan]")
-        else:
-            console.print(f"[red]✗[/red] {message}")
-        console.print()
+        _setup_hook("error", setup_error_hook)
         sys.exit(0)
 
     if args.setup_not_found_hook:
-        shell = detect_shell()
-        console.print()
-        console.print(f"[cyan]Setting up command-not-found hook for {shell}...[/cyan]")
-        success, message = setup_not_found_hook(shell)
-        if success:
-            console.print(f"[green]✓[/green] {message}")
-            console.print()
-            console.print("[yellow]Restart your shell or run:[/yellow]")
-            from wtf.setup.hooks import get_shell_config_file
-            config_file = get_shell_config_file(shell)
-            console.print(f"  [cyan]source {config_file}[/cyan]")
-        else:
-            console.print(f"[red]✗[/red] {message}")
-        console.print()
+        _setup_hook("command-not-found", setup_not_found_hook)
         sys.exit(0)
 
     if args.remove_hooks:
@@ -719,6 +754,9 @@ def main() -> None:
         console.print()
         sys.exit(0)
 
+
+def _load_or_setup_config():
+    """Load configuration, running setup wizard if needed."""
     # Check if setup is needed (first run)
     if not config_exists():
         console.print()
@@ -728,13 +766,15 @@ def main() -> None:
 
     # Load config
     try:
-        config = load_config()
+        return load_config()
     except Exception as e:
         console.print(f"[red]Error loading config:[/red] {e}")
         console.print("Run [cyan]wtf --setup[/cyan] to reconfigure.")
         sys.exit(1)
 
-    # Handle query
+
+def _handle_query(args, config) -> None:
+    """Handle user query or show helpful message."""
     if args.query:
         query = ' '.join(args.query)
         # Set verbose/debug mode via environment variable
@@ -751,6 +791,38 @@ def main() -> None:
         console.print("  [cyan]wtf \"your question here\"[/cyan]")
         console.print("  [cyan]wtf undo[/cyan]")
         console.print("  [cyan]wtf --help[/cyan]")
+
+
+def main() -> None:
+    """Main entry point for wtf CLI."""
+    args = _parse_arguments()
+
+    # Handle flags
+    if args.help:
+        print_help()
+        sys.exit(0)
+
+    if args.version:
+        print_version()
+        sys.exit(0)
+
+    if args.config:
+        _handle_config_flag()
+
+    if args.reset:
+        _handle_reset_flag()
+
+    if args.setup:
+        run_setup_wizard()
+        sys.exit(0)
+
+    _handle_hooks_flags(args)
+
+    # Load or setup config
+    config = _load_or_setup_config()
+
+    # Handle query
+    _handle_query(args, config)
 
     sys.exit(0)
 

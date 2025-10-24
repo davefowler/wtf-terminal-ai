@@ -10,40 +10,49 @@
 
 [data-md-color-scheme="slate"] {
   --md-primary-fg-color: #000000;
-  --md-primary-bg-color: #0a0a0a;
-  --md-accent-fg-color: #00ff00;
-  --md-default-bg-color: #0a0a0a;
-  --md-default-fg-color: #00ff00;
-  --md-code-bg-color: #000000;
-  --md-code-fg-color: #00ff00;
+  --md-primary-bg-color: #1a1a1a;
+  --md-accent-fg-color: #4af626;
+  --md-default-bg-color: #1a1a1a;
+  --md-default-fg-color: #c9d1d9;
+  --md-code-bg-color: #0d1117;
+  --md-code-fg-color: #4af626;
 }
 
 /* Make code blocks look like terminal */
 .highlight pre,
 pre code {
-  background-color: #000000 !important;
-  color: #00ff00 !important;
-  border: 1px solid #00ff00;
+  background-color: #0d1117 !important;
+  color: #4af626 !important;
+  border: 1px solid #30363d;
   border-radius: 4px;
+  padding: 1em !important;
 }
 
 /* Terminal prompt styling */
 .highlight .gp {
-  color: #00ff00 !important;
+  color: #4af626 !important;
   user-select: none;
 }
 
 /* Links in terminal green */
 [data-md-color-scheme="slate"] a {
-  color: #00ff00;
+  color: #58d364;
 }
 
 [data-md-color-scheme="slate"] a:hover {
-  color: #00cc00;
+  color: #4af626;
 }
 
-/* Monospace everything in dark mode for authentic terminal feel */
-[data-md-color-scheme="slate"] {
+/* Inline code styling */
+[data-md-color-scheme="slate"] code {
+  background-color: #21262d;
+  color: #4af626;
+  padding: 0.2em 0.4em;
+  border-radius: 3px;
+}
+
+/* Only use monospace for code elements */
+code, pre, .highlight {
   font-family: 'IBM Plex Mono', 'Courier New', monospace;
 }
 
@@ -55,10 +64,16 @@ html {
   text-size-adjust: 100%;
 }
 
-/* Smooth font loading - prevent layout shift */
+/* Better readability - use system fonts for body text */
 body {
-  font-family: 'IBM Plex Mono', 'Courier New', monospace;
-  font-display: swap;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  line-height: 1.6;
+}
+
+/* Better text rendering */
+[data-md-color-scheme="slate"] {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* Ensure proper responsive behavior */
@@ -80,4 +95,36 @@ body {
 .md-main,
 .md-content {
   transition: all 0.2s ease-in-out;
+}
+
+/* Improve heading readability in dark mode */
+[data-md-color-scheme="slate"] h1,
+[data-md-color-scheme="slate"] h2,
+[data-md-color-scheme="slate"] h3,
+[data-md-color-scheme="slate"] h4,
+[data-md-color-scheme="slate"] h5,
+[data-md-color-scheme="slate"] h6 {
+  color: #e6edf3;
+}
+
+/* Sidebar styling for dark mode */
+[data-md-color-scheme="slate"] .md-nav__link {
+  color: #c9d1d9;
+}
+
+[data-md-color-scheme="slate"] .md-nav__link--active {
+  color: #4af626;
+}
+
+[data-md-color-scheme="slate"] .md-nav__link:hover {
+  color: #58d364;
+}
+
+/* Table of contents styling */
+[data-md-color-scheme="slate"] .md-nav--secondary .md-nav__link {
+  color: #8b949e;
+}
+
+[data-md-color-scheme="slate"] .md-nav--secondary .md-nav__link--active {
+  color: #4af626;
 }
