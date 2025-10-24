@@ -2,13 +2,33 @@
 
 ## 1. Project Overview
 
-**Name:** wtf
-**Version:** 0.1.0
+**Name:** wtf  
+**Version:** 0.1.0  
+**License:** MIT  
 **Purpose:** A command-line AI assistant that provides contextual help based on terminal history and user queries.
 
 ### 1.1 Core Concept
 
 Users can invoke AI assistance directly from their terminal using the `wtf` command, which intelligently understands their terminal context and provides relevant help, suggestions, or executes commands on their behalf.
+
+### 1.2 License
+
+**MIT License** - Maximum freedom with minimal restrictions.
+
+**Why MIT?**
+- ✅ Use it however you want (personal, commercial, whatever)
+- ✅ Fork it, modify it, distribute it
+- ✅ No copyleft requirements - your modifications stay yours
+- ✅ Simple, well-understood, universally compatible
+- ✅ Same license as Python, Node.js, and most CLI tools
+
+**What this means for you:**
+- Install and use it freely
+- Modify the code for your needs
+- Include it in commercial products
+- No obligation to share your changes (though we'd appreciate PRs!)
+
+The full license text will be in the `LICENSE` file in the repository root.
 
 ## 2. Installation & Distribution
 
@@ -2285,18 +2305,25 @@ Look, we're not completely flag-free. Sometimes you need precision:
   --help, -h         This message (meta achievement unlocked)
   --version, -v      Print version number
   --config           Open config file in your editor
-  --model MODEL      Override AI model (Claude, GPT-4, etc.)
+  --model MODEL      Override AI model (must be specified BEFORE your query)
   --verbose          Show diagnostic info
   --reset            Reset all config to defaults
   --setup            Run setup wizard again
 
-But seriously, before using these, just try asking for what you want:
-  "wtf what version am I running?"
-  "wtf open my config"
-  "wtf use gpt-4 for this"
+Most of these have natural language alternatives:
+  "wtf what version am I running?" instead of --version
+  "wtf open my config" instead of --config
+  "wtf show me diagnostic info" instead of --verbose
 
-If the natural language version works, you saved yourself from remembering 
-another flag. You're welcome.
+EXCEPT for --model. That one's special. You can't say "wtf use gpt-4 for this"
+because by the time wtf processes that request, it's already running inside 
+whatever model was selected at startup. Chicken and egg problem.
+
+So for model selection, use the flag:
+  wtf --model gpt-4 "explain this error"
+
+Or change your default model for future runs:
+  wtf change my default model to gpt-4
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
