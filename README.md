@@ -19,25 +19,20 @@ pip install wtf-ai
 ### From source
 
 ```bash
-git clone https://github.com/username/wtf-terminal-ai.git
+git clone https://github.com/davefowler/wtf-terminal-ai.git
 cd wtf-terminal-ai
 pip install -e .
 ```
 
-## First Run Setup
-
-On first run, `wtf` will guide you through a simple setup:
-
-1. Choose your AI provider (Anthropic, OpenAI, or Google)
-2. Enter your API key
-3. Select your default model
-
-That's it. You're ready to go.
-
 ## Quick Start
 
+**First use:** Just run `wtf` with any query. Setup happens automatically:
+
 ```bash
-# Get help with anything
+# First time use - setup wizard runs automatically
+wtf "what's in my git status?"
+
+# After setup, use naturally
 wtf how do I exit vim
 
 # Made a mistake?
@@ -69,7 +64,7 @@ Configuration is stored in `~/.config/wtf/`:
 
 ## Documentation
 
-For full documentation, visit [https://wtf-ai.dev](https://wtf-ai.dev)
+For full documentation, see [SPEC.md](SPEC.md) and [TASKS.md](TASKS.md)
 
 ## License
 
@@ -77,4 +72,4 @@ MIT License - see LICENSE file for details
 
 ## Contributing
 
-Issues and PRs welcome at [https://github.com/username/wtf-terminal-ai](https://github.com/username/wtf-terminal-ai)
+Issues and PRs welcome at [https://github.com/davefowler/wtf-terminal-ai](https://github.com/davefowler/wtf-terminal-ai)
