@@ -1,409 +1,837 @@
-# WTF Terminal AI - Expert Review & Critique
+# WTF Terminal AI - Expert Review & Recommendations
 
-**Reviewer Perspective:** Senior Software Engineer with 15+ years experience in CLI tools, DevOps, and AI/ML systems
-
-**Overall Assessment:** 7.5/10 - Solid concept with good attention to UX, but some architectural concerns and missing considerations.
-
----
-
-## What's Great
-
-### 1. User Experience Focus
-The "permission prompt" system is excellent. The three-option approach (Yes/Always/No) strikes a good balance between safety and usability. This mirrors successful patterns from tools like `sudo` and modern package managers.
-
-### 2. Context-Aware Design
-Feeding shell history as context is clever. This makes the tool genuinely useful rather than just a fancy wrapper around ChatGPT. The context summary for conversation continuity is particularly well thought out.
-
-### 3. Configuration Philosophy
-The decision to use:
-- Environment variables for API keys (security)
-- Markdown for custom instructions (user-friendly)
-- JSON for structured config (machine-readable)
-
-This is pragmatic and follows Unix philosophy.
-
-### 4. Scope Management
-Explicitly listing "Future Enhancements" shows good project planning. The v0.1 scope is achievable without being trivial.
+**Reviewer:** Senior OSS Developer / CLI Tool Maintainer  
+**Experience:** 15+ years building developer tools, contributed to major CLI projects  
+**Date:** October 2024
 
 ---
 
-## What's Problematic
+## TL;DR
 
-### 1. Command Name Collision Risk
+This is a **genuinely good idea** with a solid spec. The Gilfoyle/Marvin personality is chef's kiss - dry humor in dev tools is underutilized. You've thought through the hard parts: permissions, context gathering, streaming, and you're not trying to boil the ocean in v0.1.
 
-**Issue:** `wtf` is likely already used by many developers as an alias or function. Common uses:
+**Build it.** But read this first.
+
+---
+
+## What You Got Right
+
+### 1. The Permission System is Gold
+
+The three-tier permission model (`[Y]es / [a]lways / [n]o`) is *exactly* right. You've clearly used tools that get this wrong. The allowlist pattern matching is smart - specific enough to be safe, flexible enough to be useful.
+
+**Love this:**
+- Commands with `;`, `&&`, `||` never auto-execute (even if allowlisted)
+- Denylist for obviously dangerous patterns
+- Visual distinction between context commands and action commands
+
+**One addition:** Consider a "dry-run mode" where you show what WOULD happen without executing. Great for learning and debugging.
+
 ```bash
-alias wtf='git status'
-alias wtf='history | tail -20'
+wtf --dry-run "fix my docker setup"
+# Shows full execution plan without running anything
 ```
 
-**Impact:** Installation could break existing workflows.
+### 2. Context is King
 
-**Recommendation:**
-- Check for existing `wtf` command/alias during installation
-- Offer alternative names (`wtfai`, `wtf-ai`, `wai`)
-- Provide easy aliasing in docs
-- Consider using a less common name by default
+Shell history + git status + memories = actually useful context. Most AI terminal tools just wrap the LLM API and call it a day. You're building something that understands the user's workflow.
 
-### 2. LLM Package Dependency
+**The memory system is underrated.** Remembering "user prefers rebase over merge" or "uses poetry not pip" makes this feel like an assistant, not a chatbot.
 
-**Issue:** The spec suggests using Simon Willison's `llm` package. While excellent, this adds:
-- External dependency on someone else's abstraction
-- Potential version conflicts
-- Limited control over provider-specific features
-- Extra layer to debug when things break
+### 3. You're Not Using SQLite for History
 
-**Concerns:**
-- What if `llm` doesn't support a feature you need?
-- What if it has breaking changes?
-- Does it support all the models you want?
+Thank god. JSONL is the right call. It's debuggable, greppable, and every Unix tool works with it. SQLite is for when you have a problem, not because you might have one later.
 
-**Recommendation:**
-- Consider direct API integration for v0.1 (simpler, more control)
-- Add `llm` integration as optional plugin later
-- Or: Use `llm` but have fallback to direct API calls
+### 4. Using `fc` Instead of Parsing History Files
 
-### 3. Shell History Parsing is Fragile
+This is the kind of detail that shows you've built CLI tools before. History file formats are a nightmare (timestamps, multiline, here-docs). Let the shell handle it. Smart.
 
-**Issue:** Shell history formats vary wildly:
-- Different timestamp formats
-- Multi-line commands
-- Heredocs and strings with special chars
-- History options (HIST_IGNORE_SPACE, etc.)
+### 5. MCP Integration Roadmap
 
-**Example Problem:**
+The plugin architecture plan is *chef's kiss*. Starting without plugins (v0.1) but designing for them is exactly right. And planning MCP integration for v0.3 is forward-thinking - that ecosystem is going to explode.
+
+---
+
+## What Needs Work
+
+### 1. The Name Will Definitely Collide
+
+I have `alias wtf='git status'`. Every developer I know has a `wtf` alias. This will be a problem.
+
+**My recommendation:**
+- Ship as `wtfai` on PyPI
+- Create symlinks for `wtf`, `wai`, `wtf-ai`
+- Let installer detect conflicts and suggest alternatives
+- Document aliasing for users who want `wtf`
+
+**Why not just accept the collision?** Because when your tool breaks someone's workflow on install, they'll immediately uninstall and never come back. First impressions matter.
+
+### 2. Streaming and Thinking Output Needs More Detail
+
+You added streaming (good!), but the spec is light on implementation details:
+
+**Questions:**
+- How do you handle interrupted streams? (Ctrl+C during AI response)
+- What if user's terminal doesn't support ANSI codes?
+- How do you handle very long streaming responses? (pagination, truncation?)
+- What about websocket connections for providers that need them?
+
+**Recommendation:** Add a fallback mode for dumb terminals and a max response length.
+
+### 3. Error Recovery is Weak
+
+What happens when:
+- AI returns malformed JSON?
+- Command execution hangs?
+- User loses internet mid-stream?
+- API rate limit hit?
+
+**Add to spec:**
+- Timeout handling for commands (default 30s, configurable)
+- Graceful degradation when API is down
+- Resume/retry mechanisms
+- Clear error messages with actionable fixes
+
+**Example:**
 ```bash
-# This is one command but looks like multiple lines in history:
-cat <<EOF > file.txt
-line 1
-line 2
-EOF
+$ wtf "fix this"
+Error: API rate limit exceeded (resets in 3m 24s)
+
+Try:
+  - Wait 3 minutes and try again
+  - Use a different API key: wtf --model gpt-4 "fix this"
+  - Work offline with history: wtf --history | grep "fix"
 ```
 
-**Recommendation:**
-- Start with simple parsing, document limitations
-- Use shell's built-in history command (`fc -l -n -5`) instead of parsing files
-- Test extensively with real-world messy histories
-- Consider using shell integration to capture commands more reliably
+### 4. The "Memories" System Might Be Too Clever
 
-### 4. Security: Allowlist Bypass Potential
+I love the idea, but:
+- How do you prevent false patterns? (User tries poetry once, now it's remembered forever?)
+- How do you correct wrong memories? (GUI needed? CLI commands?)
+- Confidence scores are great, but who decides the threshold?
 
-**Issue:** The allowlist uses string matching which is easily bypassed:
+**Recommendation:** 
+- Start simpler: just track what commands user runs frequently
+- v0.2: Add explicit memory commands
+  ```bash
+  wtf --remember "I prefer vim over emacs"
+  wtf --forget editor
+  wtf --memories list
+  ```
+- Let users opt-out easily
 
-Allowlist has: `git status`
-User runs: `git status; rm -rf /`
+### 5. Multi-Step Command Flow Needs State Management
 
-**Recommendation:**
-- Parse commands into base command + args
-- Match only the base command for simple cases
-- For patterns, use proper command parsing library
-- Consider warning on chained commands (`;`, `&&`, `||`)
-- Add denylist for dangerous commands (`rm -rf`, `dd`, `mv /`, etc.)
+Your examples show multi-step flows (check config → fix → restart), but the spec doesn't explain how this works under the hood.
 
-### 5. JSONL for History is Questionable
+**Questions:**
+- Does the AI plan all steps upfront, or dynamically?
+- What if step 3 depends on output of step 2?
+- Can user cancel mid-flow?
+- How do you avoid infinite loops? (AI keeps trying, failing, trying again)
 
-**Issue:** While append-friendly, JSONL has problems:
-- No atomic updates (corruption risk)
-- Linear scan for recent conversations
-- File grows indefinitely
-- No indexing
-
-**Recommendation:**
-- Use SQLite instead (built into Python, atomic, queryable)
-- Or: Structured JSON with rotation (history.json, history.1.json, etc.)
-- Add cleanup command (`wtf --cleanup-history`)
-
-### 6. Missing Error Recovery
-
-**Issue:** What happens when:
-- User's internet drops mid-API call?
-- Terminal window is resized during output?
-- Process is killed mid-command execution?
-- Config file is locked by another process?
-
-**Recommendation:**
-- Add explicit error handling section for each scenario
-- Implement graceful degradation
-- Save conversation state before each API call
-- Add recovery command (`wtf --recover`)
-
-### 7. No Rate Limiting / Cost Control
-
-**Issue:** Users could accidentally:
-- Burn through API credits in a loop
-- Hit rate limits repeatedly
-- Create infinite conversation loops
-
-**Recommendation:**
-- Add cost tracking to config (estimated tokens used)
-- Warn when approaching rate limits
-- Add `--budget` flag to limit spending
-- Implement basic rate limiting client-side
-
-### 8. Context Summary is AI-Generated (Unreliable)
-
-**Issue:** Relying on AI to generate its own context summary means:
-- Summary quality varies
-- Hallucinations could propagate
-- No guarantee of useful information
-- Costs extra tokens
-
-**Recommendation:**
-- Use structured data for context where possible
-- Extract: commands run, files modified, errors seen, current directory
-- AI-generated summary should be supplementary, not primary
-- Consider user-editable summaries
+**The state machine you added (15.4) is a good start**, but should be v0.1, not v0.2. This is core to getting multi-step right.
 
 ---
 
-## What's Missing
+## UI/UX Enhancements (Learning from tAI, Aider, and Claude-Code)
 
-### 1. Output Formatting Strategy
+### What Makes tAI's UI More Mature
 
-**Missing:** How does the tool format long outputs? Options:
-- Pipe to pager (`less`)
-- Truncate with "see more" option
-- Stream output line-by-line
-- Syntax highlighting?
+I've used tAI extensively. Here's what they do better:
 
-**Recommendation:** Define this explicitly, especially for code blocks.
+**1. Command Preview Window**
+- Shows full command in a box BEFORE asking permission
+- Syntax highlighting for commands
+- Shows environment context (what user/host this runs as)
 
-### 2. Offline Mode
+**Example from tAI:**
+```
+╭─ Command Preview ─────────────────────────────╮
+│ git commit -a -m "Fix authentication bug"    │
+│                                              │
+│ Context:                                     │
+│   • Branch: feature-auth-fix                │
+│   • Modified: 3 files                       │
+│   • Untracked: 0 files                      │
+│   • Will commit as: user@example.com        │
+╰──────────────────────────────────────────────╯
 
-**Missing:** What if user has no internet?
+Continue? [Y/n/e] (e to edit)
+```
 
-**Recommendation:**
-- Cache common responses locally
-- Offer "expert system" mode with hardcoded help for common issues
-- At minimum, show helpful error message with last known working state
+**2. Edit Before Execute**
+- `[e]` option lets you modify command before running
+- Opens command in $EDITOR or readline
+- Super useful when AI is 90% right
 
-### 3. Multi-User / Team Settings
+**3. Command History Navigation**
+- `wtf --last` reruns last wtf command
+- `wtf --redo 3` reruns command from 3 steps ago
+- Arrow keys to navigate previous wtf sessions
 
-**Missing:** How does this work on shared servers?
+**4. Better Progress Indicators**
+- Spinner shows "Analyzing context..." with sub-tasks
+- Progress bar for long operations
+- Estimated time remaining for known operations
 
-**Recommendation:**
-- User-specific config in `~/.config/wtf/`
-- Optional system-wide config in `/etc/wtf/`
-- Team allowlists that can be shared via git
+**Example:**
+```
+🔍 Analyzing context...
+  ✓ Shell history (23 commands)
+  ✓ Git status (3 modified, 0 staged)
+  ⏳ Checking docker containers...
+  
+🤖 Querying Claude Sonnet 3.5...
+  ⏳ Waiting for response... (avg: 2.3s)
+```
 
-### 4. Testing Strategy is Vague
+### What to Borrow from Aider
 
-**Missing:** How do you test AI interactions?
+**1. Diff Preview for File Changes**
+When the AI wants to modify a file, show a diff BEFORE applying:
 
-**Recommendation:**
-- Mock API responses with recorded examples
-- Test deterministic parts (parsing, config, permissions)
-- Add integration tests with small model or local LLM
-- Document that some behaviors are inherently non-deterministic
-
-### 5. Logging & Debugging
-
-**Missing:** When things go wrong, how do users debug?
-
-**Recommendation:**
-- Add `--debug` flag for verbose logging
-- Log file at `~/.config/wtf/wtf.log`
-- Include: timestamps, API calls, command executions, errors
-- Add `wtf --doctor` command to check configuration
-
-### 6. Installation Script Security
-
-**Missing:** The spec suggests `curl | bash` but doesn't address security:
-
-**Recommendation:**
-- Provide checksum verification
-- Sign releases
-- Show users what the install script does
-- Prefer package managers when possible
-
-### 7. Conversation Threading
-
-**Missing:** How do you refer to previous conversations?
-
-**Example Use Case:**
 ```bash
-> wtf how do I set up docker?
-# ... conversation happens ...
-> wtf show me that docker command again from yesterday
+$ wtf "fix the typo in package.json"
+
+I'll fix the 'biuld' → 'build' typo.
+
+╭─ Changes to package.json ────────────────────╮
+│  5 │ "scripts": {                            │
+│  6 │   "start": "node index.js",            │
+│  7 │-  "biuld": "webpack --mode production", │
+│  7 │+  "build": "webpack --mode production", │
+│  8 │   "test": "jest"                       │
+│  9 │ }                                       │
+╰──────────────────────────────────────────────╯
+
+Apply changes? [Y/n/e]
 ```
 
-**Recommendation:**
-- Add conversation IDs that are memorable/short
-- `wtf --thread abc123` to continue specific conversation
-- `wtf --search "docker setup"` to find old conversations
+**2. Interactive Mode**
+```bash
+wtf --interactive
 
-### 8. Command Dry-Run Preview
-
-**The spec has `--no-execute` but it's unclear what this does**
-
-**Recommendation:**
-- Show what WOULD be executed
-- Show full context that would be sent to AI
-- Useful for debugging and understanding behavior
-
----
-
-## Architectural Suggestions
-
-### 1. Plugin Architecture (Future)
-
-Consider designing with plugins in mind from the start:
-- Core: command parsing, config, permissions
-- Plugins: API providers, shell integrations, special contexts
-
-This makes testing easier and allows community extensions.
-
-### 2. Separation of Concerns
-
-Recommended modules:
-```
-wtf/
-├── cli.py          # Argument parsing, UI
-├── config.py       # Configuration management
-├── context.py      # Context gathering
-├── history.py      # Shell history parsing
-├── conversation.py # Conversation state management
-├── ai.py          # AI provider interface
-├── executor.py    # Command execution & permissions
-└── utils.py       # Shared utilities
+# Enters a REPL-like mode:
+wtf> my docker container won't start
+[AI helps]
+wtf> now check the logs
+[AI continues context from previous]
+wtf> /exit
 ```
 
-### 3. State Machine for Conversations
+**3. Confirmation Summaries**
+After executing commands, show a summary:
+```
+✓ Completed in 3 steps:
+  1. Fixed package.json typo
+  2. Ran npm install
+  3. Restarted dev server
 
-The conversation flow is complex. Consider explicit states:
-- INITIALIZING: Gathering context
-- WAITING_FOR_AI: API call in progress
-- AWAITING_PERMISSION: Command needs approval
-- EXECUTING: Running command
-- RESPONDING: Showing final response
-- COMPLETE: Conversation done
+Changes made:
+  • 1 file modified
+  • 23 packages updated
+  • Server now running on :3000
+```
 
-This makes the code more testable and easier to reason about.
+### What to Borrow from Claude-Code
 
----
+**1. Reasoning Traces**
+Claude-Code shows the AI's thinking in a collapsible section:
 
-## Competitive Analysis
+```
+╭─ Reasoning ───────────────────────────────────╮
+│ User is getting EACCES on npm install        │
+│ → Check if using sudo (bad practice)         │
+│ → Check npm cache permissions                │
+│ → Check global package directory ownership   │
+│                                              │
+│ Strategy: Fix ownership, clear cache, retry  │
+╰──────────────────────────────────────────────╯
 
-### Comparison to Existing Tools
+Let me check your npm setup...
+```
 
-**vs. tAI:**
-- Similar permission system (good)
-- WTF adds conversation continuity (better)
-- tAI has more mature UI (consider adopting)
+You added this with thinking breadcrumbs - good! Make it toggleable.
 
-**vs. GitHub Copilot CLI:**
-- Copilot focuses on command suggestions
-- WTF is more conversational (different use case)
-- Could complement each other
+**2. Context Inspection**
+```bash
+wtf --context
 
-**vs. `thefuck`:**
-- `thefuck` is reactive (fixes last command)
-- WTF is proactive (asks AI)
-- Consider integration: `wtf` could use `thefuck` rules
+# Shows what context will be sent:
+Context to be sent to AI:
+  ✓ Shell history (last 5 commands)
+  ✓ Git status (on branch: main)
+  ✓ Current directory: ~/projects/myapp
+  ✓ Detected: Node.js project (package.json found)
+  ✓ Memories: prefers npm over yarn (confidence: 0.9)
+  
+Total context size: 234 tokens
+```
 
-### Differentiation Strategy
+**3. Undo Support**
+```bash
+wtf --undo     # Undo last wtf action
+wtf --undo 3   # Undo specific action by ID
+```
 
-**WTF's Unique Value:**
-1. Conversation continuity across sessions
-2. Context-aware from shell history
-3. Provider-agnostic AI
-4. Privacy-focused (local history)
-
-**Recommendation:** Emphasize these in marketing/docs.
-
----
-
-## Performance Concerns
-
-### 1. Startup Time
-
-**Issue:** Loading history, config, and context on every invocation could be slow.
-
-**Recommendation:**
-- Lazy-load what's not needed
-- Cache parsed history
-- Benchmark: should start in <100ms
-
-### 2. API Latency
-
-**Issue:** Users expect terminal commands to be fast. AI calls take seconds.
-
-**Recommendation:**
-- Show spinner/progress immediately
-- Stream responses when possible
-- Offer to run in background for long tasks
-
-### 3. History File I/O
-
-**Issue:** Reading/writing to history file on every invocation.
-
-**Recommendation:**
-- Only write on completion
-- Buffer writes for frequent use
-- Consider in-memory cache
+Requires saving a rollback plan (git commits, file backups, etc.)
 
 ---
 
-## Documentation Needs
+## Recommendations by Priority
 
-The spec is good but you'll need:
+### Must Have (v0.1)
 
-1. **User Guide:**
-   - Quick start tutorial
-   - Common use cases with examples
-   - Troubleshooting guide
+1. **Name collision detection and alternatives**
+   - Don't break existing workflows
+   - Provide clear migration path
 
-2. **Development Guide:**
-   - Architecture overview
-   - How to add new AI providers
-   - Testing guidelines
+2. **Basic error handling**
+   - Timeouts, rate limits, network failures
+   - Clear error messages with fixes
 
-3. **API Documentation:**
-   - If others want to integrate with WTF
-   - Config file format reference
-   - History format specification
+3. **Command preview improvements**
+   - Show context (user, host, directory)
+   - Syntax highlighting
+   - Allow editing before execution
 
-4. **Security Guide:**
-   - What data is sent to AI providers
-   - How to audit executed commands
-   - Privacy best practices
+4. **State machine for multi-step flows**
+   - This is core, not a nice-to-have
+   - Prevents subtle bugs in complex flows
+
+5. **Graceful history fallback**
+   - You have this! Keep it.
+
+### Should Have (v0.2)
+
+1. **Edit before execute (`[e]` option)**
+   - Opens command in $EDITOR
+   - Saves so much back-and-forth
+
+2. **Better progress indicators**
+   - Spinners, progress bars, time estimates
+   - Makes waiting less painful
+
+3. **Command history navigation**
+   - `--last`, `--redo`, arrow keys
+   - Reduces retyping
+
+4. **Context inspection**
+   - `--context` flag to see what's sent
+   - Builds trust, helps debugging
+
+5. **Diff preview for file changes**
+   - Only if you support file modifications
+   - Critical for trust
+
+### Nice to Have (v0.3+)
+
+1. **Interactive mode (REPL)**
+   - For complex multi-turn debugging
+   - Not core to the vision
+
+2. **Undo support**
+   - Hard to implement correctly
+   - High value if done right
+
+3. **Voice input** (from your future list)
+   - Cool but not essential
+   - Mobile-first feature
 
 ---
 
-## Final Recommendations
+## Architecture Deep Dive
 
-### Must Fix Before Launch:
-1. Address command name collision issue
-2. Strengthen allowlist security
-3. Add proper error handling
-4. Implement cost/rate limiting
-5. Add logging and debug mode
+### The Plugin System is Smart (v0.2+)
 
-### Should Consider:
-1. SQLite instead of JSONL
-2. Direct API integration instead of `llm` package dependency
-3. Use shell's history command instead of parsing files
-4. Add conversation threading
-5. State machine for conversation flow
+Your plan to:
+1. Start without plugins (v0.1)
+2. Design with clean interfaces
+3. Add plugin system (v0.2)
+4. MCP integration (v0.3)
 
-### Nice to Have:
-1. Plugin architecture foundation
-2. Team settings support
-3. Offline mode
-4. Comprehensive test coverage for AI interactions
+This is *chef's kiss*. Too many projects start with plugins and end up with a framework, not a tool.
+
+**Suggested plugin categories:**
+- **Context providers** (GitHub, Jira, AWS)
+- **Command validators** (k8s-safe, db-safe)
+- **AI providers** (local models, custom APIs)
+- **Output formatters** (JSON, table, markdown)
+
+**Don't make plugins for:**
+- Core functionality (history, config, permissions)
+- Security-critical paths
+- Anything performance-sensitive
+
+### MCP Integration is the Future
+
+Your MCP plan is excellent. By v0.3, the MCP ecosystem will be rich:
+- GitHub PRs and issues
+- Database schemas and queries
+- Cloud resources (AWS, GCP, K8s)
+- Internal tools via custom servers
+
+**Key insight:** MCP servers can be *context sources* OR *action executors*. Your spec focuses on context, but consider:
+
+```bash
+$ wtf "merge PR #123"
+# Uses GitHub MCP to get PR details AND execute merge
+# Not just read-only context
+```
+
+### The State Machine is Non-Negotiable
+
+You added it to "Future Enhancements (v0.2+)". **Move it to v0.1.**
+
+Why? Your multi-step examples (check config → fix → restart) won't work reliably without it. You'll end up with spaghetti code trying to track state in variables.
+
+**States you need:**
+- INIT (gathering context)
+- THINKING (AI processing)
+- STREAMING (showing response)
+- AWAITING_PERMISSION (user input)
+- EXECUTING (running command)
+- PROCESSING_OUTPUT (AI analyzing results)
+- COMPLETE (done)
+- ERROR (something broke)
+
+**Trust me on this.** The state machine pays for itself by day 3 of implementation.
 
 ---
 
-## Conclusion
+## Testing Strategy
 
-**The Good:** This is a well-thought-out tool that solves a real problem. The UX considerations are excellent, and the scope is realistic.
+The spec says "Mock API responses with recorded examples." Good start, but expand:
 
-**The Bad:** Some security concerns need addressing, and the architecture could be more robust. The dependency on external packages adds risk.
+### Unit Tests
+- Context gathering (shell history, git status)
+- Allowlist/denylist pattern matching
+- Command chaining detection
+- Security validation
 
-**The Verdict:** With the security issues fixed and some architectural refinements, this could be a genuinely useful tool. The concept is strong, and the attention to UX shows. I'd recommend building a minimal prototype quickly to validate assumptions, then iterating on the architecture.
+### Integration Tests
+```python
+def test_simple_command_execution():
+    """Test basic wtf query → command → execution flow."""
+    mock_ai.set_response("Run: git status")
+    result = run_wtf("what's my git status?", auto_approve=True)
+    assert "git status" in result.commands_executed
+    assert result.exit_code == 0
 
-**Would I use this?** Yes, once the security issues are addressed. I'd probably alias it to something shorter though.
+def test_permission_rejection():
+    """Test that rejecting permission exits gracefully."""
+    mock_ai.set_response("Run: rm -rf /")
+    result = run_wtf("delete everything", auto_reject=True)
+    assert result.commands_executed == []
+    assert "Alright, not running that" in result.output
+```
 
-**Would I recommend this to my team?** Yes, but only after seeing the allowlist security improved. Can't risk someone's bad config nuking a production server.
+### Snapshot Tests
+Record actual AI responses and replay them:
+```python
+# tests/snapshots/git_merge_conflict.json
+{
+  "query": "I'm stuck in a merge",
+  "context": {...},
+  "ai_response": "...",
+  "commands": [...]
+}
 
-**Overall:** Build it! But iterate on the spec first based on this feedback. Start small, get it working for one shell (zsh) and one AI provider (Claude/GPT), then expand.
+def test_git_merge_conflict():
+    """Test against recorded AI response."""
+    snapshot = load_snapshot("git_merge_conflict")
+    result = run_wtf_with_snapshot(snapshot)
+    assert_matches_snapshot(result)
+```
+
+### End-to-End Tests
+Spin up a Docker container, simulate user workflows:
+```bash
+# tests/e2e/test_npm_error.sh
+cd /tmp/test-project
+npm run biuld  # Intentional typo
+wtf --auto <<< "Y"  # Auto-approve
+assert_contains "npm run build"
+assert_success
+```
+
+---
+
+## Performance Considerations
+
+### Startup Time Must Be Fast
+
+CLI tools live or die by startup time. Budget: **< 100ms to show first output**.
+
+**Profile these:**
+- Python import time (use lazy imports)
+- Config loading (cache parsed config)
+- History reading (only read last N lines)
+- Plugin discovery (cache plugin list)
+
+**Benchmark:**
+```bash
+time wtf --version  # Should be < 50ms
+time wtf "hello"    # Should start AI call in < 100ms
+```
+
+### Streaming is Critical
+
+You prioritize streaming - good! But also handle:
+- **Slow networks:** Show buffer status, allow offline mode
+- **Rate limits:** Back off gracefully, show time to reset
+- **Token limits:** Truncate context intelligently, warn user
+
+### Memory Usage
+
+With conversation history and memories, you could accumulate state. Set limits:
+- Max history file size (10MB - you have this)
+- Max memories (1000 entries)
+- Max context size sent to AI (8k tokens)
+
+---
+
+## Security Review
+
+### Command Injection Prevention ✅
+
+Your denylist + chaining detection is good. Add:
+
+**Input sanitization:**
+```python
+def sanitize_command(cmd: str) -> str:
+    """Remove obviously dangerous patterns."""
+    dangerous = [
+        r';\s*rm\s+-rf',  # Chained rm -rf
+        r'\$\(.*rm',       # Command substitution with rm
+        r'>\s*/dev/sd',    # Write to device
+    ]
+    for pattern in dangerous:
+        if re.search(pattern, cmd):
+            raise SecurityError(f"Command matches dangerous pattern: {pattern}")
+    return cmd
+```
+
+**Sandbox execution:** Consider running commands in a restricted environment:
+- `firejail` on Linux
+- Docker container
+- `unshare` for namespace isolation
+
+At minimum, document how users can sandbox it themselves.
+
+### API Key Security ✅
+
+Environment variables > config file. Good.
+
+Add:
+- Check config file permissions (should be 600)
+- Warn if API key in config file
+- Support cloud secrets (AWS Secrets Manager, etc.)
+
+### Data Privacy
+
+You filter sensitive data from history. Add:
+- List of patterns (API keys, passwords, tokens)
+- User-configurable filters
+- Opt-out of history logging per-command
+  ```bash
+  PRIVATE=1 wtf "query with sensitive data"
+  # Not logged to history
+  ```
+
+---
+
+## UI/UX Polish
+
+### Terminal Compatibility
+
+Test on:
+- iTerm2, Terminal.app (macOS)
+- Gnome Terminal, Konsole (Linux)
+- Windows Terminal, WSL
+- SSH sessions (tmux, screen)
+- Dumb terminals (fallback mode)
+
+**Graceful degradation:**
+- No color support? Use bold/underline
+- No Unicode? Use ASCII art
+- Narrow terminal? Adjust box widths
+
+### Accessibility
+
+- Screen reader support (ANSI codes might interfere)
+- High contrast mode
+- Option to disable animations/spinners
+- Clear keyboard-only navigation
+
+### Colors and Formatting
+
+Your personality is dry/sardonic. Match the aesthetic:
+
+**Color palette suggestion:**
+- **Primary:** Amber/orange (think HAL 9000, warning vibes)
+- **Success:** Dim green (not bright)
+- **Errors:** Red (standard)
+- **Thinking:** Dim gray (unobtrusive)
+- **Commands:** Cyan (stands out but not jarring)
+
+**Typography:**
+- Use bold sparingly (command letters [Y], [a], [n])
+- Italics for thinking/reasoning
+- Boxes for commands (you have this)
+
+---
+
+## Comparison with Similar Tools
+
+### vs. GitHub Copilot CLI
+**What they do:** Suggest git/gh commands via AI  
+**What you do:** Full terminal assistant with context and execution
+
+**Differentiators:**
+- You have conversation continuity (they don't)
+- You execute commands (they just suggest)
+- You have memory system (they don't)
+
+**What to learn from them:**
+- Their command syntax is clean: `??` for "what command", `git?` for "git help"
+- Consider shorthand: `wtf?` for context-aware help
+
+### vs. tAI (Terminal AI)
+**What they do:** AI command execution with permissions  
+**What you do:** Same, but with conversation history and personality
+
+**Differentiators:**
+- You have memory/learning (they don't)
+- You have Gilfoyle personality (they're neutral)
+- You plan MCP integration (they don't)
+
+**What to learn from them:**
+- Command preview UI (covered above)
+- Edit before execute (covered above)
+- Clean permission prompts
+
+### vs. Aider
+**What they do:** AI pair programming in terminal  
+**What you do:** Broader terminal assistance, not just coding
+
+**Differentiators:**
+- You work across all terminal tasks (they focus on code)
+- You integrate with shell history (they focus on git)
+- You're more conversational (they're more transactional)
+
+**What to learn from them:**
+- Diff previews (covered above)
+- Interactive mode (covered above)
+- Clear feedback on what changed
+
+### vs. Claude-Code (in Zed/Cursor)
+**What they do:** AI coding assistant in IDE  
+**What you do:** Terminal-native, shell-focused
+
+**Differentiators:**
+- You're CLI-first (they're IDE-first)
+- You handle devops/commands (they handle code)
+- You have shell context (they have file context)
+
+**What to learn from them:**
+- Reasoning traces (covered above)
+- Context inspection (covered above)
+- Clear action summaries
+
+### vs. `thefuck`
+**What they do:** Fix last command automatically  
+**What you do:** AI-powered general assistance
+
+**Potential integration:**
+```bash
+$ npm run biuld
+npm error Missing script: "biuld"
+
+$ wtf  # Could detect typo and use thefuck rules
+I see you tried 'npm run biuld' - did you mean 'build'?
+```
+
+Consider importing `thefuck`'s rule database for common fixes.
+
+---
+
+## Go-to-Market Strategy
+
+### Positioning
+
+**Target audience:**
+1. **Primary:** Senior developers who live in the terminal
+2. **Secondary:** DevOps/SRE who juggle multiple tools
+3. **Tertiary:** Junior devs learning CLI tools
+
+**Messaging:**
+- "Your terminal assistant who gets it" (understands context)
+- "Finally, an AI that remembers" (memory system)
+- "Safe by default, powerful when needed" (permissions)
+
+### Documentation Strategy
+
+**Landing page (docs/index.md):** You have a good template.
+
+Add:
+- **Video demo** (< 2 min, shows real problem → wtf → solved)
+- **Comparison table** (vs. Copilot CLI, tAI, etc.)
+- **Testimonials** from early users
+- **Security section** (how it protects you)
+
+**README.md:** Keep it short.
+
+**Cookbook:** Real-world examples
+- "Fixing merge conflicts"
+- "Debugging Docker containers"
+- "Managing npm packages"
+- "Git workflow automation"
+
+### Community Building
+
+**Where your users are:**
+- Hacker News (launch post)
+- r/programming, r/commandline
+- Dev.to, Medium
+- Twitter/X (technical audience)
+
+**Content ideas:**
+- "Building a terminal AI assistant: What we learned"
+- "Why we chose JSONL over SQLite"
+- "The anatomy of a good CLI permission system"
+
+**Early access program:**
+- Beta testers get credited in docs
+- Feedback shapes v0.2 features
+- Build community before launch
+
+---
+
+## The Roadmap Looks Solid
+
+**v0.1 (MVP):**
+- Core functionality
+- Basic AI providers
+- Permission system
+- Context gathering
+- ✅ Looks achievable in 2-3 months
+
+**Additions I'd make:**
+- State machine (move from v0.2 to v0.1)
+- Edit before execute
+- Better error handling
+
+**v0.2 (Polish):**
+- Plugin system
+- Better UI (progress, diffs, edit)
+- Memory improvements
+- History navigation
+- ✅ Good feature set, probably 2 months
+
+**v0.3 (Ecosystem):**
+- MCP integration
+- Advanced plugins
+- Team features
+- ✅ This is where it gets really powerful
+
+---
+
+## Final Thoughts
+
+### What Makes This Special
+
+Most AI terminal tools are just fancy wrappers around `curl`. You're building something that:
+1. **Understands context** (history, git, memories)
+2. **Learns over time** (memory system)
+3. **Respects the user** (permission system, privacy)
+4. **Has personality** (Gilfoyle/Marvin is perfect)
+
+This could be the tool that finally makes AI assistants useful in the terminal.
+
+### Biggest Risks
+
+1. **Name collision** - Will definitely bite you if not handled
+2. **Complexity creep** - Easy to add features, hard to stay focused
+3. **AI quality** - You're only as good as the underlying models
+4. **Performance** - Python CLI tools can be slow if not careful
+5. **Monetization** - How do you sustain this? (Probably not a v0.1 concern)
+
+### What I'd Do First
+
+If I were building this:
+
+**Week 1:** Basic shell → AI → response flow (no execution)
+**Week 2:** Add permission system and command execution
+**Week 3:** Context gathering (history, git)
+**Week 4:** Polish UX, add streaming, test with real users
+
+Ship v0.1 in a month. Get feedback. Iterate fast.
+
+### Would I Use This?
+
+**Yes.** Absolutely.
+
+I've tried tAI, Copilot CLI, and various other tools. They're all missing something:
+- tAI doesn't remember anything
+- Copilot CLI is git-only
+- Aider is code-only
+
+This combines the best parts of all of them with a personality that doesn't make me cringe.
+
+### Would I Contribute?
+
+**Also yes.**
+
+The plugin architecture makes it easy to extend. I'd probably build:
+- Kubernetes context provider
+- Terraform plan validator
+- Internal API integration
+
+### The Bottom Line
+
+**This is a 9/10 spec.** Seriously.
+
+You've thought through the hard parts. You're not trying to do everything. You have a clear roadmap. The personality is unique.
+
+**Make these changes:**
+1. Handle name collision gracefully
+2. Move state machine to v0.1
+3. Add edit-before-execute
+4. Improve error handling
+5. Polish the UI (learn from tAI)
+
+**Then ship it.**
+
+I'll be first in line to try it.
+
+---
+
+## Acknowledgments & Influences
+
+Make sure to credit these projects in your docs:
+
+**Influenced by:**
+- **tAI** - Command preview and permission UX
+- **GitHub Copilot CLI** - AI-powered command suggestions
+- **Aider** - Diff previews and interactive mode
+- **Claude-Code** - Reasoning traces and context inspection
+- **thefuck** - Command correction patterns
+
+**Standing on shoulders of giants:**
+- Simon Willison's `llm` library - AI provider abstraction
+- Rich library - Terminal formatting and UI
+- MCP (Model Context Protocol) - Standardized AI context
+
+**Inspiration:**
+- Gilfoyle (Silicon Valley) - Dry technical humor
+- Marvin (Hitchhiker's Guide) - Existential CLI assistant
+- HAL 9000 - AI that's helpful but knows it
+
+---
+
+**Want me to look at your prototype when it's ready?** DM me. I'm @[handle] on Twitter/GitHub.
+
+Good luck. Seriously, build this. The terminal needs it.
+
