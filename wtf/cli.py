@@ -564,7 +564,9 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
 
                 console.print(f"[dim]$[/dim] [cyan]{cmd}[/cyan]")
                 if output.strip():
-                    console.print(output)
+                    # Add "| " prefix to each line of output for visual distinction
+                    indented_output = '\n'.join(f"[dim]|[/dim] {line}" for line in output.split('\n'))
+                    console.print(indented_output)
                 if exit_code != 0:
                     console.print(f"[yellow]Exit code: {exit_code}[/yellow]")
                 console.print()
