@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Edit(.)",
+      "Read(.)",
+      "WebFetch(domain:pypi.org)",
+      "WebFetch(domain:anthropic.com)",
+      "WebFetch(domain:openai.com)",
+      "WebFetch(domain:googleapis.com)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ],
+    "deny": [
+      "Edit(~/.ssh)",
+      "Edit(~/.aws)",
+      "Edit(~/.config/gcloud)",
+      "Read(~/.ssh/id_rsa)",
+      "Read(~/.ssh/id_ed25519)",
+      "Read(~/.aws/credentials)",
+      "Read(~/.config/gcloud)"
+    ]
+  },
+  "description": "Sandbox config for wtf-terminal-ai development"
+}
+

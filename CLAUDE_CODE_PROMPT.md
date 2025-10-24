@@ -4,6 +4,21 @@ Copy this and paste it into Claude Code to get started:
 
 ---
 
+**IMPORTANT: Run with Sandbox Runtime for Safety**
+
+This repo includes `.sandbox-config.json` which restricts:
+- ✅ Allows: Reading/writing in this project directory
+- ✅ Allows: Network access to PyPI, GitHub, and AI APIs
+- ❌ Denies: Access to ~/.ssh, ~/.aws, credentials
+- ❌ Denies: Writing outside project directory
+
+Claude Code should automatically detect and use this config. If running commands manually:
+```bash
+srt <command>  # Runs command with sandbox restrictions
+```
+
+---
+
 I need you to implement `wtf` - a terminal AI assistant. All the specs are in this repo.
 
 **Your mission:**
