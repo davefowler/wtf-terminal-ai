@@ -4,6 +4,10 @@ A command-line AI assistant that provides contextual help based on terminal hist
 
 📚 **[Full Documentation](https://davefowler.github.io/wtf-terminal-ai/)** | 🚀 **[Quick Start Guide](https://davefowler.github.io/wtf-terminal-ai/getting-started/)** | ❓ **[FAQ](https://davefowler.github.io/wtf-terminal-ai/faq/)**
 
+---
+
+**⏪ Made a mistake?** Just say `wtf undo` - it analyzes your history and reverses your last command intelligently. Works for git commits, file deletions, package installs, and more.
+
 ## What is this?
 
 `wtf` is a terminal AI assistant that is there for you when you f up. Hit an error?  Just type `wtf`.  Made a mistake? Just say `wtf undo`.  Need to install something? Type `wtf install [thing]`.  Forget the command?  No problem just ask `wtf can you back me out of this failed merge attempt?`.
@@ -154,6 +158,17 @@ For developers: See [SPEC.md](SPEC.md) and [TASKS.md](./instructions_from_the_cr
 ## License
 
 MIT License - see LICENSE file for details
+
+## Acknowledgments
+
+wtf stands on the shoulders of:
+
+- **[tAI](https://github.com/AbanteAI/tAI)** - Original terminal AI inspiration
+- **[Aider](https://github.com/paul-gauthier/aider)** - Proved AI + version control works
+- **[llm](https://github.com/simonw/llm)** - Model abstraction by Simon Willison
+- **[Rich](https://github.com/Textualize/rich)** - Terminal UI that doesn't suck
+
+See [full acknowledgments](https://davefowler.github.io/wtf-terminal-ai/acknowledgments/) for details.
 
 ## Contributing
 
