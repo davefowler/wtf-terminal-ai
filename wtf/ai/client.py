@@ -219,6 +219,8 @@ def query_ai_with_tools(
                 if isinstance(result, dict):
                     if 'output' in result:
                         return result['output']
+                    elif 'results' in result:
+                        return result['results'] or "(no results)"
                     elif 'content' in result:
                         return result['content'] or "(empty)"
                     elif 'matches' in result:

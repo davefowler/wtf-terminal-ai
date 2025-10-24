@@ -300,6 +300,58 @@ def update_config(key: str, value: Any) -> Dict[str, Any]:
         }
 
 
+def web_search(query: str) -> Dict[str, Any]:
+    """
+    Search the web for current information.
+
+    Internal tool - use this for weather, news, current events, etc.
+
+    Args:
+        query: Search query
+
+    Returns:
+        Dict with:
+        - results: Search results
+        - should_print: False (internal tool)
+    """
+    try:
+        import urllib.parse
+        import json
+        import urllib.request
+
+        # Use DuckDuckGo instant answer API (no key required)
+        encoded_query = urllib.parse.quote(query)
+        url = f"https://api.duckduckgo.com/?q={encoded_query}&format=json&no_html=1"
+
+        with urllib.request.urlopen(url, timeout=5) as response:
+            data = json.loads(response.read().decode())
+
+        # Extract relevant results
+        results = []
+
+        # Abstract (direct answer)
+        if data.get('Abstract'):
+            results.append(f"Answer: {data['Abstract']}")
+
+        # Related topics
+        for topic in data.get('RelatedTopics', [])[:3]:
+            if isinstance(topic, dict) and topic.get('Text'):
+                results.append(topic['Text'])
+
+        result_text = '\n'.join(results) if results else "No results found. Try being more specific."
+
+        return {
+            "results": result_text,
+            "should_print": False
+        }
+    except Exception as e:
+        return {
+            "results": f"Web search failed: {e}",
+            "error": str(e),
+            "should_print": False
+        }
+
+
 # Tool registry for llm library
 TOOLS = {
     "run_command": run_command,
@@ -309,6 +361,7 @@ TOOLS = {
     "lookup_history": lookup_history,
     "get_config": get_config,
     "update_config": update_config,
+    "web_search": web_search,
 }
 
 
@@ -432,6 +485,20 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
                     }
                 },
                 "required": ["key", "value"]
+            }
+        },
+        {
+            "name": "web_search",
+            "description": "Search the web for current information (weather, news, facts, current events). Use this when the user asks about real-time information you don't have.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Search query (e.g., 'weather in San Francisco', 'Python 3.12 release date')"
+                    }
+                },
+                "required": ["query"]
             }
         }
     ]
