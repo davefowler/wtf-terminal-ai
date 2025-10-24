@@ -1,5 +1,5 @@
 site_name: wtf - Terminal AI Assistant
-site_url: https://github.com/davefowler/wtf-terminal-ai
+site_url: https://davefowler.github.io/wtf-terminal-ai/
 site_description: A command-line AI assistant that provides contextual help based on terminal history
 site_author: wtf contributors
 repo_url: https://github.com/davefowler/wtf-terminal-ai
@@ -8,22 +8,25 @@ repo_name: davefowler/wtf-terminal-ai
 theme:
   name: material
   palette:
-    # Light mode
+    # Light mode - terminal style
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: deep purple
-      accent: purple
+      primary: black
+      accent: green
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
-    # Dark mode
+    # Dark mode - classic terminal (black background, green text)
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: deep purple
-      accent: purple
+      primary: black
+      accent: green
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+  font:
+    text: 'IBM Plex Mono'
+    code: 'IBM Plex Mono'
   features:
     - navigation.instant
     - navigation.tracking
@@ -79,3 +82,6 @@ extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/davefowler/wtf-terminal-ai
+
+extra_css:
+  - stylesheets/terminal.css

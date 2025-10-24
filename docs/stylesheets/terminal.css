@@ -1,0 +1,45 @@
+/* Terminal-style overrides for wtf docs */
+
+:root {
+  --md-primary-fg-color: #000000;
+  --md-accent-fg-color: #00ff00;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #000000;
+  --md-primary-bg-color: #0a0a0a;
+  --md-accent-fg-color: #00ff00;
+  --md-default-bg-color: #0a0a0a;
+  --md-default-fg-color: #00ff00;
+  --md-code-bg-color: #000000;
+  --md-code-fg-color: #00ff00;
+}
+
+/* Make code blocks look like terminal */
+.highlight pre,
+pre code {
+  background-color: #000000 !important;
+  color: #00ff00 !important;
+  border: 1px solid #00ff00;
+  border-radius: 4px;
+}
+
+/* Terminal prompt styling */
+.highlight .gp {
+  color: #00ff00 !important;
+  user-select: none;
+}
+
+/* Links in terminal green */
+[data-md-color-scheme="slate"] a {
+  color: #00ff00;
+}
+
+[data-md-color-scheme="slate"] a:hover {
+  color: #00cc00;
+}
+
+/* Monospace everything in dark mode for authentic terminal feel */
+[data-md-color-scheme="slate"] {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+}

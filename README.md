@@ -2,6 +2,8 @@
 
 A command-line AI assistant that provides contextual help based on terminal history and user queries.
 
+📚 **[Full Documentation](https://davefowler.github.io/wtf-terminal-ai/)** | 🚀 **[Quick Start Guide](https://davefowler.github.io/wtf-terminal-ai/getting-started/)** | ❓ **[FAQ](https://davefowler.github.io/wtf-terminal-ai/faq/)**
+
 ## What is this?
 
 `wtf` is a terminal AI assistant that is there for you when you f up. Hit an error?  Just type `wtf`.  Made a mistake? Just say `wtf undo`.  Need to install something? Type `wtf install [thing]`.  Forget the command?  No problem just ask `wtf can you back me out of this failed merge attempt?`.
@@ -103,7 +105,15 @@ If you're old fashioned you can also adjust these things as variables in a file.
 
 ## Documentation
 
-For full documentation, see [SPEC.md](SPEC.md) and [TASKS.md](TASKS.md)
+📖 **[Read the full documentation](https://davefowler.github.io/wtf-terminal-ai/)** with terminal-style theming!
+
+Topics covered:
+- [Getting Started](https://davefowler.github.io/wtf-terminal-ai/getting-started/) - Installation and first run
+- [Features](https://davefowler.github.io/wtf-terminal-ai/quick-tour/) - What wtf can do
+- [Configuration](https://davefowler.github.io/wtf-terminal-ai/faq/) - Customization options
+- [FAQ](https://davefowler.github.io/wtf-terminal-ai/faq/) - Common questions
+
+For developers: See [SPEC.md](SPEC.md) and [TASKS.md](./instructions_from_the_creator/TASKS.md)
 
 ## License
 
