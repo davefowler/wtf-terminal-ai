@@ -270,18 +270,51 @@ We just need a thin wrapper that:
 - `wtf/ai/prompts.py`
 
 **What `prompts.py` needs:**
-- `build_system_prompt()` → full system prompt from SPEC.md section 5.4
-- `build_context_prompt(history, git_status, env, memories)` → context section
+- `DEFAULT_PERSONALITY` constant (Gilfoyle/Marvin)
+- `load_personality()` → reads personality.txt if exists, else returns DEFAULT_PERSONALITY
 - `load_custom_instructions()` → reads wtf.md if exists
-- Includes Gilfoyle/Marvin personality instructions
+- `build_system_prompt()` → assembles full prompt with personality + instructions
+- `build_context_prompt(history, git_status, env, memories)` → context section
 - Includes UNDO instructions from SPEC.md section 4.1.1
 
+**Design approach:**
+```python
+DEFAULT_PERSONALITY = """
+PERSONALITY:
+You have a Gilfoyle/Marvin personality...
+"""
+
+def load_personality() -> str:
+    personality_file = config_dir / "personality.txt"
+    if personality_file.exists():
+        return personality_file.read_text()
+    return DEFAULT_PERSONALITY
+
+def build_system_prompt() -> str:
+    personality = load_personality()
+    custom = load_custom_instructions()
+    
+    return f"""
+You are wtf...
+
+{personality}
+
+CUSTOM INSTRUCTIONS:
+{custom}
+
+[capabilities, undo instructions, etc.]
+"""
+```
+
 **Acceptance criteria:**
-- [ ] System prompt matches SPEC.md section 5.4
+- [ ] DEFAULT_PERSONALITY constant defined
+- [ ] load_personality() returns custom or default
+- [ ] Personality is injected as variable (not hard-coded)
 - [ ] Includes custom instructions from wtf.md
 - [ ] Includes shell history in context
 - [ ] Includes git status in context
 - [ ] Includes UNDO handling instructions
+- [ ] Changing personality.txt affects next invocation
 
 ---
 

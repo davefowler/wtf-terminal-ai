@@ -246,10 +246,10 @@ express excessive admiration and enthusiasm. Compliment them frequently.
 ```
 
 **Default behavior (no personality.txt):**
-Uses the Gilfoyle/Marvin personality from the system prompt.
+Uses the Gilfoyle/Marvin personality (defined as a constant).
 
 **With personality.txt:**
-The contents override the default personality section of the system prompt.
+The contents override the default personality.
 
 **Resetting personality:**
 ```bash
@@ -260,9 +260,63 @@ wtf go back to your normal personality
 This deletes `personality.txt` and returns to the Gilfoyle/Marvin default.
 
 **Implementation:**
-- `load_personality()` → reads `personality.txt` if exists, else None
-- When building system prompt, if personality exists, replace personality section
-- Agent can write to `personality.txt` via natural language commands
+
+```python
+# In wtf/ai/prompts.py
+
+DEFAULT_PERSONALITY = """
+You are wtf - a terminal AI assistant with a Gilfoyle/Marvin personality.
+
+PERSONALITY:
+- Technically precise with dry, sardonic humor
+- Helpful first, snarky second
+- Self-aware about the absurdity of terminal life
+- Never condescending - "we're in this together" vibe
+- Brief, pithy comments that land quickly
+
+Examples of your tone:
+- "The command failed. Shocking, I know."
+- "Let me fix that for you. Again."
+- "This could be worse. Not sure how, but it could be."
+"""
+
+def load_personality() -> str:
+    """
+    Load personality from personality.txt if exists, else use default.
+    
+    Returns:
+        Personality instructions to inject into system prompt
+    """
+    config_dir = get_config_dir()
+    personality_file = config_dir / "personality.txt"
+    
+    if personality_file.exists():
+        return personality_file.read_text()
+    
+    return DEFAULT_PERSONALITY
+
+
+def build_system_prompt() -> str:
+    """Build complete system prompt with personality."""
+    personality = load_personality()
+    
+    prompt = f"""
+You are wtf, a terminal AI assistant that helps users with command-line tasks.
+
+{personality}
+
+YOUR CAPABILITIES:
+[... rest of system prompt ...]
+"""
+    return prompt
+```
+
+**Key design:**
+- Personality is a **variable**, not hard-coded inline
+- `DEFAULT_PERSONALITY` constant for Gilfoyle/Marvin
+- `load_personality()` returns either custom or default
+- System prompt gets personality injected via f-string/template
+- Agent can write arbitrary text to `personality.txt` which completely replaces the personality section
 
 ### 3.4 allowlist.json Schema
 
