@@ -20,6 +20,15 @@ from wtf.context.git import get_git_status
 from wtf.context.env import get_environment_context
 from wtf.ai.prompts import build_system_prompt, build_context_prompt
 from wtf.ai.client import query_ai
+from wtf.ai.response_parser import extract_commands
+from wtf.core.permissions import (
+    load_allowlist,
+    load_denylist,
+    should_auto_execute,
+    prompt_for_permission,
+    add_to_allowlist
+)
+from wtf.core.executor import execute_command
 
 console = Console()
 
@@ -381,14 +390,84 @@ Please help the user with their query. If you need to run commands, propose them
     with console.status("🤖 Thinking...", spinner="dots"):
         try:
             response = query_ai(full_prompt, config, stream=False)
-            console.print()
-            console.print(response)
         except Exception as e:
             console.print()
             console.print(f"[red]Error:[/red] {e}")
             console.print()
             console.print("[yellow]Tip:[/yellow] Make sure your API key is set correctly.")
             console.print("  Run [cyan]wtf --setup[/cyan] to reconfigure.")
+            return
+
+    console.print()
+
+    # Parse response for commands
+    commands_to_run = extract_commands(response)
+
+    # If no commands, just show the response
+    if not commands_to_run:
+        console.print(response)
+        return
+
+    # Load permission lists
+    allowlist = load_allowlist()
+    denylist = load_denylist()
+
+    # Show AI response first
+    console.print(response)
+    console.print()
+
+    # Process each command
+    for cmd_dict in commands_to_run:
+        cmd = cmd_dict['command']
+        explanation = cmd_dict.get('explanation', '')
+        allowlist_pattern = cmd_dict.get('allowlist_pattern', cmd.split()[0])
+
+        # Check if command should auto-execute, ask, or deny
+        decision = should_auto_execute(cmd, allowlist, denylist, config)
+
+        if decision == "deny":
+            console.print(f"[red]✗[/red] Command denied (in denylist): [cyan]{cmd}[/cyan]")
+            console.print()
+            continue
+
+        elif decision == "auto":
+            # Auto-execute without asking
+            console.print(f"[dim]Running:[/dim] [cyan]{cmd}[/cyan]")
+            output, exit_code = execute_command(cmd, show_spinner=False)
+
+            if output.strip():
+                console.print(output)
+
+            if exit_code != 0:
+                console.print(f"[yellow]Command exited with code {exit_code}[/yellow]")
+
+            console.print()
+
+        else:  # decision == "ask"
+            # Prompt for permission
+            permission = prompt_for_permission(cmd, explanation, allowlist_pattern)
+
+            if permission == "no":
+                console.print("[yellow]Skipped[/yellow]")
+                console.print()
+                continue
+
+            elif permission == "yes_always":
+                # Add to allowlist
+                add_to_allowlist(allowlist_pattern)
+                console.print()
+
+            # Execute the command
+            output, exit_code = execute_command(cmd)
+
+            console.print()
+            if output.strip():
+                console.print(output)
+
+            if exit_code != 0:
+                console.print(f"[yellow]Command exited with code {exit_code}[/yellow]")
+
+            console.print()
 
 
 def main() -> None:
