@@ -524,13 +524,13 @@ def get_tool_definitions() -> List[Dict[str, Any]]:
         },
         {
             "name": "web_search",
-            "description": "Search the web for current information (weather, news, facts, current events). Use this when the user asks about real-time information you don't have.",
+            "description": "Search for documentation URLs and general knowledge. Has built-in lookups for 20+ frameworks (Django, React, Python, etc.). Also searches for encyclopedic facts. NOTE: Does NOT work for weather, news, local searches, or real-time data.",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Search query (e.g., 'weather in San Francisco', 'Python 3.12 release date')"
+                        "description": "Search query (e.g., 'django docs', 'python programming language')"
                     }
                 },
                 "required": ["query"]

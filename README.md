@@ -61,11 +61,11 @@ wtf "what does this error mean?"
 # Learn your preferences
 wtf remember I prefer npm over yarn and I live in San Francisco
 
-# need to get out?
-wtf is it nice outside?
+# Find documentation
+wtf find me the react docs
 
-# want to read some docs?
-wtf can you get me the docs on connecting react to supabase
+# Get general knowledge
+wtf what is rust programming language
 ```
 
 ## Requirements
