@@ -199,16 +199,41 @@ def query_ai_with_tools(
         raise NetworkError(f"Failed to load model '{configured_model}': {e}")
 
     # Create llm.Tool objects from our tool definitions
+    # Wrap tool implementations to handle dict returns
     llm_tools = []
     for tool_def in get_tool_definitions():
         tool_name = tool_def["name"]
         tool_impl = TOOLS[tool_name]
 
+        # Wrapper to convert dict returns to strings
+        def make_wrapper(func):
+            def wrapper(*args, **kwargs):
+                result = func(*args, **kwargs)
+                # If tool returns dict, convert to string
+                if isinstance(result, dict):
+                    if 'output' in result:
+                        return result['output']
+                    elif 'content' in result:
+                        return result['content'] or "(empty)"
+                    elif 'matches' in result:
+                        return '\n'.join(result['matches']) if result['matches'] else "(no matches)"
+                    elif 'files' in result:
+                        return '\n'.join(result['files']) if result['files'] else "(no files found)"
+                    elif 'error' in result and result['error']:
+                        return f"Error: {result['error']}"
+                    else:
+                        # Convert whole dict to string
+                        import json
+                        return json.dumps(result, indent=2)
+                return str(result)
+            wrapper.__name__ = func.__name__
+            return wrapper
+
         llm_tool = llm.Tool(
             name=tool_name,
             description=tool_def["description"],
             input_schema=tool_def["parameters"],
-            implementation=tool_impl
+            implementation=make_wrapper(tool_impl)
         )
         llm_tools.append(llm_tool)
 
@@ -216,13 +241,27 @@ def query_ai_with_tools(
     # The tools have implementations, so llm will execute them automatically
     all_tool_calls = []
 
+    # Store original tool functions for tracking
+    original_tools = {tool_def["name"]: TOOLS[tool_def["name"]] for tool_def in get_tool_definitions()}
+
     # Track tool usage with callbacks
     def after_tool_call(tool: llm.Tool, tool_call: llm.ToolCall, result: llm.ToolResult):
         """Track tool calls for our records."""
+        # Get the original function result (as dict) by calling it again
+        # This is a bit wasteful but ensures we track the proper structure
+        tool_func = original_tools.get(tool.name)
+        if tool_func:
+            try:
+                original_result = tool_func(**tool_call.arguments)
+            except:
+                original_result = {"output": result.output if hasattr(result, 'output') else str(result)}
+        else:
+            original_result = {"output": result.output if hasattr(result, 'output') else str(result)}
+
         all_tool_calls.append({
             "name": tool.name,
             "arguments": tool_call.arguments if hasattr(tool_call, 'arguments') else {},
-            "result": {"output": result.output if hasattr(result, 'output') else str(result)},
+            "result": original_result if isinstance(original_result, dict) else {"output": str(original_result)},
             "iteration": len(all_tool_calls) + 1
         })
 
@@ -234,11 +273,10 @@ def query_ai_with_tools(
             chain_limit=max_iterations  # Limit tool chaining
         )
 
-        # Make request - llm handles tool calling automatically
-        response = conversation.prompt(
+        # Use chain() for automatic tool execution, not prompt()!
+        response = conversation.chain(
             prompt=prompt,
-            system=system_prompt,
-            stream=False
+            system=system_prompt
         )
 
         return {

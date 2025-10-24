@@ -39,7 +39,7 @@ def run_command(command: str) -> Dict[str, Any]:
             output += "\n" + result.stderr
 
         return {
-            "output": output,
+            "output": output or "(no output)",
             "exit_code": result.returncode,
             "should_print": True  # User should see this
         }
