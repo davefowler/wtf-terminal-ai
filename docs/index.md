@@ -1,20 +1,20 @@
-# wtf - Because working in the terminal often gets you asking wtf
+# wtf
 
-A command-line AI assistant that actually understands your terminal context.
+Because working in the command line often leaves you asking `wtf`.
 
 ## What is this?
 
-`wtf` is there for you when you mess up. Hit an error? Just type `wtf`. Made a mistake? Say `wtf undo`. Need to install something? `wtf install [thing]`. Forgot a command? Ask `wtf can you back me out of this failed merge attempt?`
+`wtf` is a sometimes helpful, usually unpleasant AI assistant for your terminal. It is there for you when you mess up. 
+
+Hit an error? Just type `wtf`. Made a mistake? Say `wtf undo`. Need to install something? `wtf install [thing]`. Forgot a command? Ask `wtf can you back me out of this failed merge attempt?`
 
 No flags to remember. No manual pages written in ancient Sumerian. Just describe what you want in plain English (or whatever language you prefer, we're not picky).
 
 ## Why does this exist?
 
-Because developers spend half their time Googling error messages and the other half copy-pasting commands from Stack Overflow without reading them.
+Brain rot is real, as is the excess of information that insists on you remembering it.  Like any good drug `wtf` offers you relief from your brain rot condition while quickening its ascent.  
 
-We figured: what if your terminal just... helped you?
-
-Novel concept, we know.
+Why spend time challenging your mind with learning tools, commands, and how things work when its so deliciously easy to just let the ai do the thinking for you?
 
 ## Quick Example
 
@@ -23,11 +23,11 @@ $ git rebase -i HEAD~5
 # Oh no, you messed up the rebase
 $ wtf
 
-I see you're in the middle of a rebase. Let me guess - you picked
+I see you are in the middle of a rebase. Let me guess - you picked
 the wrong commit? Happens to the best of us. Actually, it happens
 to everyone. Rebasing is just UI/UX for masochists.
 
-Here's how to get out:
+Here is how to get out:
 
 $ git rebase --abort
 ```
@@ -70,7 +70,7 @@ Three ways to install, because choice is the illusion of control:
 Just run `wtf` with any query. Setup happens automatically:
 
 ```bash
-wtf "what's in my git status?"
+wtf what is the answer to life the universe and everything?
 ```
 
 The setup wizard will ask you to:
@@ -83,17 +83,16 @@ That's it. You're ready to make mistakes and let AI fix them.
 
 ## What's Next?
 
-- [Getting Started](getting-started.md) - Detailed installation and setup
+- [Getting Started](getting-started.md) - Detailed installation guide
+- [Setup](setup.md) - Configure wtf for first use
 - [Quick Tour](quick-tour.md) - See what wtf can do
 - [FAQ](faq.md) - Questions we've asked ourselves
 
 ## Philosophy
 
-CLI tools have 47 flags and you need to consult the manual every time. And then the manual is written like a legal document from 1987.
+CLI tools have 47 flags and you need to consult the manual every time. And then the manual is written like a legal document from 1987.  This can really harsh your vibe coding.
 
-We hate that too.
-
-`wtf` has a different philosophy: you shouldn't need to remember anything. Just describe what you want. The AI figures out the rest.
+`wtf` has a different philosophy: you shouldn't need to (read: can't) remember anything. Instead, just describe what you want. The AI figures out the rest.
 
 It's not complicated. Which is the point.
 

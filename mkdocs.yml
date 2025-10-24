@@ -59,7 +59,7 @@ nav:
   - Home: index.md
   - Getting Started:
       - Installation: getting-started.md
-      - First Run: first-run.md
+      - Setup: setup.md
       - Quick Tour: quick-tour.md
   - Features:
       - Undo: features/undo.md
