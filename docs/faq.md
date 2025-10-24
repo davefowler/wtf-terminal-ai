@@ -164,6 +164,37 @@ AI makes mistakes. Always review commands before approving.
 
 Yes. Check `~/.config/wtf/history.jsonl` for a complete log of queries, responses, and executed commands.
 
+## Usage Issues
+
+### I get "zsh: no matches found" errors
+
+This happens when you use `?` or `*` in your query without quotes:
+
+```bash
+$ wtf are you there?
+zsh: no matches found: there?
+```
+
+**Solution 1: Add the noglob alias (recommended)**
+
+Add this to your `~/.zshrc`:
+
+```bash
+alias wtf='noglob wtf'
+```
+
+Then restart your shell: `source ~/.zshrc`
+
+Now you can use: `wtf are you there?` without quotes.
+
+**Solution 2: Always use quotes**
+
+```bash
+wtf "are you there?"
+```
+
+The install script adds the noglob alias automatically. If you installed via pip, add it manually.
+
 ## Troubleshooting
 
 ### wtf is slow

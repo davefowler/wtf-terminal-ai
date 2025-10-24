@@ -122,6 +122,34 @@ wtf "hello"
 # [AI responds with personality]
 ```
 
+## Shell Integration (Important!)
+
+To use wtf without quotes around every query, add this to your `~/.zshrc` or `~/.bashrc`:
+
+```bash
+alias wtf='noglob wtf'
+```
+
+Then restart your shell: `source ~/.zshrc`
+
+**Why?** Without this, zsh/bash will try to expand `?` and `*` as glob patterns:
+
+```bash
+# Without alias - ERROR
+wtf are you there?
+# zsh: no matches found: there?
+
+# With alias - WORKS
+wtf are you there?
+# [AI responds]
+
+# Always works with quotes
+wtf "are you there?"
+# [AI responds]
+```
+
+The curl installation script adds this alias automatically.
+
 ## Next Steps
 
 - [Quick Tour](quick-tour.md) - See what wtf can do

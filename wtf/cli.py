@@ -618,11 +618,24 @@ def _run_state_machine_with_cli(
             # Include previous command outputs if this is a follow-up query
             output_context = ""
             if context.command_outputs:
-                output_context = "\n\nPREVIOUS COMMAND OUTPUTS:\n"
+                output_context = "\n\nCOMMAND OUTPUTS YOU JUST RAN:\n"
                 for i, output in enumerate(context.command_outputs):
-                    output_context += f"\nCommand {i+1} output:\n{output}\n"
+                    cmd = context.commands_to_run[i]['command'] if i < len(context.commands_to_run) else "unknown"
+                    output_context += f"\n$ {cmd}\n{output}\n"
 
-            full_prompt = f"""{system_prompt}
+            # Different prompt for iterations vs initial query
+            if context.iteration_count > 0:
+                full_prompt = f"""{system_prompt}
+
+CONTEXT:
+{context_prompt}{output_context}
+
+ORIGINAL USER QUERY:
+{context.user_query}
+
+The commands above have been executed. Please analyze their output and provide your response or run additional commands if needed."""
+            else:
+                full_prompt = f"""{system_prompt}
 
 CONTEXT:
 {context_prompt}{output_context}
@@ -768,7 +781,7 @@ Please help the user with their query. If you need to run commands, propose them
                 # User approved it
                 output, exit_code = execute_command(cmd)
 
-            # Store output
+            # Store output for AI to analyze
             context.command_outputs.append(output)
 
             console.print()
@@ -780,7 +793,24 @@ Please help the user with their query. If you need to run commands, propose them
 
             console.print()
 
+            # Check if this is the last command in the current batch
+            is_last_command = (context.current_command_index + 1) >= len(context.commands_to_run)
+
+            # If this is the last command and we have command outputs, set flag to requery
+            # so the AI can see the results and decide what to do next
+            if is_last_command and context.command_outputs and context.iteration_count < context.max_iterations:
+                context.needs_requery = True
+
             # Transition to next state (state machine handles incrementing index)
+            state_machine._execute_current_state()
+
+        elif current_state == ConversationState.PROCESSING_OUTPUT:
+            # AI will analyze command outputs and generate next response
+            # Show status to user
+            console.print("[dim]Analyzing command output...[/dim]")
+            console.print()
+
+            # Transition to QUERYING_AI (state machine handles this)
             state_machine._execute_current_state()
 
         elif current_state == ConversationState.RESPONDING:

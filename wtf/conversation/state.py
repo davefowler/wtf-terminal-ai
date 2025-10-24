@@ -35,6 +35,11 @@ class ConversationContext:
     current_command_index: int = 0
     command_outputs: List[str] = field(default_factory=list)
 
+    # Track if we need to query AI again after seeing command output
+    needs_requery: bool = False
+    iteration_count: int = 0
+    max_iterations: int = 3  # Prevent infinite loops
+
     # Permission lists
     allowlist: List[str] = field(default_factory=list)
     denylist: List[str] = field(default_factory=list)
@@ -93,8 +98,13 @@ class ConversationStateMachine:
             # Execute current command
             self.context.current_command_index += 1
 
+            # Check if we need to process output and query AI again
+            if self.context.needs_requery and self.context.iteration_count < self.context.max_iterations:
+                # Go to PROCESSING_OUTPUT to query AI again with command output
+                self.state = ConversationState.PROCESSING_OUTPUT
+                self.context.needs_requery = False  # Reset flag
             # Check if more commands to run
-            if self.context.current_command_index < len(self.context.commands_to_run):
+            elif self.context.current_command_index < len(self.context.commands_to_run):
                 # More commands - check permission for next
                 self.state = ConversationState.AWAITING_PERMISSION
             else:
@@ -102,7 +112,10 @@ class ConversationStateMachine:
                 self.state = ConversationState.RESPONDING
 
         elif self.state == ConversationState.PROCESSING_OUTPUT:
-            # AI analyzes output and may loop back
+            # AI analyzes output and loops back to query again
+            self.context.iteration_count += 1
+            self.context.current_command_index = 0  # Reset for new set of commands
+            self.context.commands_to_run = []  # Clear old commands
             self.state = ConversationState.QUERYING_AI
 
         elif self.state == ConversationState.RESPONDING:

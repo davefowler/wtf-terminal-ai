@@ -182,6 +182,42 @@ if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
     echo ""
 fi
 
+# Add noglob alias for better UX (prevents ? and * from being expanded by shell)
+echo ""
+echo "Setting up shell integration..."
+
+SHELL_CONFIG=""
+if [ -n "$ZSH_VERSION" ] || [ -f "$HOME/.zshrc" ]; then
+    SHELL_CONFIG="$HOME/.zshrc"
+elif [ -n "$BASH_VERSION" ] || [ -f "$HOME/.bashrc" ]; then
+    SHELL_CONFIG="$HOME/.bashrc"
+fi
+
+if [ -n "$SHELL_CONFIG" ]; then
+    # Check if alias already exists
+    if ! grep -q "alias $COMMAND_NAME=" "$SHELL_CONFIG" 2>/dev/null; then
+        echo "" >> "$SHELL_CONFIG"
+        echo "# wtf - disable glob expansion so you don't need quotes" >> "$SHELL_CONFIG"
+        echo "alias $COMMAND_NAME='noglob $COMMAND_NAME'" >> "$SHELL_CONFIG"
+        echo -e "${GREEN}✓${NC} Added alias to $SHELL_CONFIG"
+        echo ""
+        echo -e "${CYAN}Important:${NC} Restart your shell or run:"
+        echo -e "${CYAN}source $SHELL_CONFIG${NC}"
+        echo ""
+        echo "This lets you use: ${CYAN}$COMMAND_NAME are you there?${NC}"
+        echo "Instead of:        ${CYAN}$COMMAND_NAME \"are you there?\"${NC}"
+    else
+        echo -e "${GREEN}✓${NC} Shell alias already configured"
+    fi
+else
+    echo -e "${YELLOW}⚠${NC}  Could not detect shell config file"
+    echo ""
+    echo "For better UX, add this to your shell config:"
+    echo -e "${CYAN}alias $COMMAND_NAME='noglob $COMMAND_NAME'${NC}"
+    echo ""
+    echo "This prevents ? and * from being expanded by your shell."
+fi
+
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
 echo "║                                                              ║"

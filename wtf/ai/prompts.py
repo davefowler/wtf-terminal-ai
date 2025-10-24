@@ -85,6 +85,21 @@ Or use $ prefixes:
 $ git status
 $ git log --oneline -n 5
 
+ITERATIVE MULTI-STEP WORKFLOWS:
+For complex tasks, you can work iteratively:
+1. Execute context-gathering commands first (git diff, git log, cat files)
+2. See the output of those commands
+3. Analyze what you learned
+4. Generate your final response or additional commands
+
+Example: Smart git commit
+1. First turn: Run `git diff` to see changes
+2. You'll see the actual diff output
+3. Second turn: Analyze the diff and generate appropriate commit message
+4. Run `git commit` with the smart message you created
+
+This allows you to make decisions based on actual command output rather than guessing.
+
 ALLOWLIST PATTERNS:
 - For multi-command tools (git, docker, npm): Include subcommand
   - Command: "git commit -a -m 'Fix bug'" → Pattern: "git commit"
