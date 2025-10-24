@@ -140,7 +140,8 @@ def query_ai_with_tools(
     config: Dict[str, Any],
     system_prompt: Optional[str] = None,
     model: Optional[str] = None,
-    max_iterations: int = 10
+    max_iterations: int = 10,
+    env_context: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
     Query AI with tool support - agent can use tools in a loop.
@@ -157,6 +158,7 @@ def query_ai_with_tools(
         system_prompt: System prompt (optional)
         model: Optional model override
         max_iterations: Max tool call loops (default: 10)
+        env_context: Optional environment context for tool filtering
 
     Returns:
         Dict with:
@@ -203,9 +205,10 @@ def query_ai_with_tools(
     import sys
     debug = os.environ.get('WTF_DEBUG') == '1'
     llm_tools = []
+    tool_definitions = get_tool_definitions(env_context)
     if debug:
-        print(f"[DEBUG] Creating tools from {len(get_tool_definitions())} definitions", file=sys.stderr)
-    for tool_def in get_tool_definitions():
+        print(f"[DEBUG] Creating tools from {len(tool_definitions)} definitions", file=sys.stderr)
+    for tool_def in tool_definitions:
         tool_name = tool_def["name"]
         tool_impl = TOOLS[tool_name]
         if debug:

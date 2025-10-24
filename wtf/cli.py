@@ -18,7 +18,7 @@ from wtf.core.config import (
 )
 from wtf.context.shell import get_shell_history, build_history_context, detect_shell
 from wtf.context.git import get_git_status
-from wtf.context.env import get_environment_context
+from wtf.context.env import get_environment_context, build_tool_env_context
 from wtf.ai.prompts import build_system_prompt, build_context_prompt
 from wtf.ai.client import query_ai_safe, query_ai_with_tools
 from wtf.ai.errors import (
@@ -531,6 +531,7 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
         git_status = get_git_status()
         env_context = get_environment_context()
         memories = load_memories()
+        tool_env_context = build_tool_env_context(env_context, git_status)
 
     # Build prompts
     system_prompt = build_system_prompt()
@@ -545,7 +546,8 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
                 prompt=full_prompt,
                 config=config,
                 system_prompt=system_prompt,
-                max_iterations=10
+                max_iterations=10,
+                env_context=tool_env_context
             )
 
         # Process tool calls and print outputs

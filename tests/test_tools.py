@@ -209,7 +209,7 @@ class TestToolRegistry:
         """Test get_tool_definitions returns valid definitions."""
         definitions = get_tool_definitions()
 
-        assert len(definitions) == 8  # Updated to 8 with web_search tool
+        assert len(definitions) == 13  # Updated to 13 with new tools
 
         for tool_def in definitions:
             # Each definition should have required fields

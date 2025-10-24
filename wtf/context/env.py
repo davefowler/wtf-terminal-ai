@@ -148,3 +148,30 @@ def get_environment_context(path: str = ".") -> Dict[str, Any]:
         'project_type': project_type,
         'project_files': sorted(project_files)
     }
+
+
+def build_tool_env_context(env_context: Dict[str, Any], git_status: Any) -> Dict[str, Any]:
+    """
+    Build environment context dict for tool filtering.
+
+    Args:
+        env_context: Environment context from get_environment_context()
+        git_status: Git status dict or None
+
+    Returns:
+        Dict with keys for tool filtering:
+        - is_git_repo: bool
+        - has_package_json: bool
+        - has_requirements_txt: bool
+        - has_cargo_toml: bool
+        - has_gemfile: bool
+    """
+    project_files = env_context.get('project_files', [])
+
+    return {
+        'is_git_repo': git_status is not None,
+        'has_package_json': 'package.json' in project_files,
+        'has_requirements_txt': 'requirements.txt' in project_files or 'pyproject.toml' in project_files,
+        'has_cargo_toml': 'Cargo.toml' in project_files,
+        'has_gemfile': 'Gemfile' in project_files
+    }

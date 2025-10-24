@@ -60,6 +60,33 @@ def get_default_config() -> Dict[str, Any]:
         "shell": {
             "type": "zsh",
             "history_file": "~/.zsh_history"
+        },
+        "file_permissions": {
+            "require_permission": [
+                "*.env",
+                ".env*",
+                "*secret*",
+                "*password*",
+                "*credentials*",
+                "*.key",
+                "*.pem",
+                "*.p12",
+                "*.pfx",
+                "*token*",
+                "id_rsa*",
+                "id_ed25519*",
+                "*.ppk",
+                "*.keystore",
+                "config/master.key",
+                ".aws/credentials",
+                ".ssh/config"
+            ],
+            "always_block": [
+                "/etc/shadow",
+                "/etc/passwd",
+                "*.kdbx",
+                "*.wallet"
+            ]
         }
     }
 
@@ -196,3 +223,43 @@ def config_exists() -> bool:
     """Check if configuration directory and files exist."""
     config_path = get_config_path()
     return config_path.exists()
+
+
+def check_file_permission(file_path: str, config: Optional[Dict[str, Any]] = None) -> str:
+    """
+    Check if a file requires permission to read.
+
+    Args:
+        file_path: Path to the file to check
+        config: Optional config dict (will load if not provided)
+
+    Returns:
+        "allow" - File can be read without asking
+        "ask" - File requires user permission
+        "block" - File should never be read
+    """
+    import fnmatch
+
+    if config is None:
+        config = load_config()
+
+    file_permissions = config.get("file_permissions", {})
+
+    # Normalize path for matching
+    normalized_path = str(Path(file_path).expanduser())
+    file_name = Path(file_path).name
+
+    # Check always_block patterns first
+    always_block = file_permissions.get("always_block", [])
+    for pattern in always_block:
+        if fnmatch.fnmatch(normalized_path, pattern) or fnmatch.fnmatch(file_name, pattern):
+            return "block"
+
+    # Check require_permission patterns
+    require_permission = file_permissions.get("require_permission", [])
+    for pattern in require_permission:
+        if fnmatch.fnmatch(normalized_path, pattern) or fnmatch.fnmatch(file_name, pattern):
+            return "ask"
+
+    # Default: allow
+    return "allow"
