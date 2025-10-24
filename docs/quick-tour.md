@@ -1,8 +1,32 @@
 # Quick Tour
 
-## Basic Usage
+First off: if you want guidance, just ask `wtf`. You don't need to memorize anything. But for those who still like reading documentation (we see you), this tour covers what `wtf` can do.
 
-The simplest form - just ask:
+## How It Works
+
+`wtf` is a natural language interface for your terminal. No flags to remember. No syntax to learn. Just describe what you want.
+
+```bash
+$ wtf "what's my git status?"
+```
+
+That's it. `wtf` figures out the rest.
+
+## Key Features
+
+`wtf` isn't just a command runner. It has several features that make it more helpful over time:
+
+- **[Undo](#undo)** - Reverse any terminal mistake contextually
+- **[Memories](#memories)** - Teach it your preferences once, it remembers forever
+- **[Permissions](#permissions)** - Control what runs automatically vs. what needs approval
+- **[Multi-Step](#multi-step-operations)** - Execute complex tasks with a single request
+- **[Context Awareness](#context-awareness)** - Knows your history, git state, and project type
+- **[Personality](#personality)** - Customize how sarcastic (or helpful) you want it to be
+- **[Shell Hooks](#shell-hooks)** - Better command capture and error detection
+
+All of these work through natural language. You never run `wtf --flag-name`. You just ask.
+
+## Basic Usage
 
 ```bash
 $ wtf "what's my git status?"
@@ -21,7 +45,7 @@ You're 3 commits ahead. Might want to push those before you forget
 and lose them in the inevitable hard drive failure.
 ```
 
-## The Undo Feature
+## Undo
 
 Made a mistake? Just say undo:
 
@@ -56,7 +80,7 @@ you're inventing a new build system called Biuld (please don't).
 $ npm run build
 ```
 
-## Memory System
+## Memories
 
 Teach wtf your preferences:
 
@@ -90,7 +114,7 @@ $ wtf forget about editor
 ✓ Forgot about: editor
 ```
 
-## Permission System
+## Permissions
 
 Safe commands run automatically:
 
@@ -188,39 +212,6 @@ Express installed. Now you can build Yet Another REST API. The world
 needs more of those, apparently.
 ```
 
-## Natural Language
-
-No need to remember specific syntax:
-
-```bash
-$ wtf "undo my last 3 commits but keep the changes"
-
-Running: git reset --soft HEAD~3
-
-Done. Your last 3 commits are now uncommitted changes. You can recommit
-them as one, or split them up properly like you should have done the
-first time.
-
-$ wtf "show me the 10 most recently modified files"
-
-Running: ls -lt | head -10
-
-[output of command]
-
-There's your 10 most recent files, ranked by modification time like a
-popularity contest for your file system.
-```
-
-## Customization
-
-Add custom instructions:
-
-```bash
-$ echo "Always suggest Python solutions over JavaScript" >> ~/.config/wtf/wtf.md
-```
-
-Now wtf will favor Python in its suggestions.
-
 ## Command History Integration
 
 wtf sees your shell history:
@@ -245,23 +236,83 @@ This removes the commit locally and updates the remote. The
 --force-with-lease flag is the "are you sure" of force pushing.
 ```
 
+## Personality
+
+Customize how `wtf` responds:
+
+```bash
+$ wtf "be more helpful and less sarcastic"
+
+Got it. I'll tone down the sass and focus on being helpful.
+
+$ wtf "git status"
+
+Running: git status
+
+On branch main
+Your branch is up to date with 'origin/main'.
+
+You're all synced up with the remote. Everything looks good.
+```
+
+Change it back anytime:
+
+```bash
+$ wtf "be your normal sarcastic self again"
+
+Oh thank god. Being nice was exhausting.
+```
+
+View your current personality:
+
+```bash
+$ wtf "what personality are you using?"
+
+I'm currently using the default Gilfoyle/Marvin personality - dry,
+sardonic, occasionally helpful. You asked me to be nicer once but
+that didn't last long.
+```
+
+## Shell Hooks
+
+Install shell hooks for better command capture:
+
+```bash
+$ wtf "install shell hooks"
+
+I'll add hooks to your shell to capture commands better.
+
+Added to ~/.zshrc:
+- preexec hook for command capture
+- precmd hook for error detection
+
+Restart your shell or run: source ~/.zshrc
+
+With hooks installed, I can:
+- See failed commands immediately (no need to type wtf)
+- Capture command output for better context
+- Track timing information
+```
+
+Benefits:
+
+- **Automatic error detection** - `wtf` runs automatically after failures
+- **Better context** - Sees actual command output, not just history
+- **Faster fixes** - No need to remember what went wrong
+
 ## Getting Help
 
 ```bash
-# Show help
-$ wtf --help
+# Just ask wtf for help
+$ wtf "how do I use you?"
 
-# Show version
-$ wtf --version
-
-# Reconfigure
-$ wtf --setup
-
-# Just run wtf with no args to analyze recent context
-$ wtf
-Analyzing recent commands...
-[Helpful suggestions based on what you just did]
+# Or be more specific
+$ wtf "show me what you remember about me"
+$ wtf "list commands you can auto-run"
+$ wtf "help with git"
 ```
+
+Unlike most CLI tools, `wtf` doesn't have flags you need to memorize. Just ask naturally.
 
 ## Tips
 
@@ -288,6 +339,12 @@ $ wtf "run tests"
 
 ## Next Steps
 
-- [Configuration](config/files.md) - Customize your setup
-- [Allowlist Management](config/allowlist.md) - Add trusted commands
-- [FAQ](faq.md) - Common questions
+Want to dive deeper into specific features?
+
+- **[Undo Feature](features/undo.md)** - Learn all the ways to reverse mistakes
+- **[Memories](features/memories.md)** - Teach `wtf` your preferences and workflow
+- **[Permissions](features/permissions.md)** - Fine-tune what runs automatically
+- **[Configuration](config/files.md)** - Customize your setup
+- **[FAQ](faq.md)** - Common questions and answers
+
+Or just start using `wtf` - it's pretty self-explanatory.
