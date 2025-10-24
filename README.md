@@ -73,6 +73,16 @@ wtf what is rust programming language
 - Python 3.10 or higher
 - An API key from Anthropic, OpenAI, or Google
 
+## Optional: Web Search
+
+wtf has limited web search by default (encyclopedic facts only). For full web search (weather, news, current events, documentation):
+
+**Get a free Brave Search API key:**
+1. Sign up at https://brave.com/search/api/ (free tier: 2,000 searches/month, no credit card)
+2. Save your key: `wtf here is my brave search api key YOUR_KEY_HERE`
+
+That's it! Now wtf can search for anything.
+
 ## Hooks - Want wtf all the time?
 
 Add wtf to your shell hooks for automatic assistance:

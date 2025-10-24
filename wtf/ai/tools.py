@@ -323,6 +323,121 @@ def update_config(key: str, value: Any) -> Dict[str, Any]:
         }
 
 
+def wtf_config(action: str, key: Optional[str] = None, value: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Manage wtf configuration - API keys, settings, preferences.
+
+    This is the primary tool for handling wtf-specific configuration.
+    Use this when user says "here is my X key" or "save my Y setting".
+
+    Args:
+        action: Action to perform - "set_api_key", "get_api_key", "set_setting", "get_setting"
+        key: Key name (e.g., "brave_search", "anthropic", "openai")
+        value: Value to set (for set actions)
+
+    Returns:
+        Dict with:
+        - success: Whether action succeeded
+        - value: Retrieved value (for get actions)
+        - message: User-friendly message
+        - should_print: False (internal tool)
+    """
+    try:
+        config = load_config()
+
+        if action == "set_api_key":
+            if not key or not value:
+                return {
+                    "success": False,
+                    "error": "Both key and value required for set_api_key",
+                    "should_print": False
+                }
+
+            # Store API keys in config under api_keys section
+            if "api_keys" not in config:
+                config["api_keys"] = {}
+
+            config["api_keys"][key] = value
+            save_config(config)
+
+            return {
+                "success": True,
+                "message": f"Saved {key} API key to config",
+                "should_print": False
+            }
+
+        elif action == "get_api_key":
+            if not key:
+                return {
+                    "success": False,
+                    "error": "Key required for get_api_key",
+                    "should_print": False
+                }
+
+            api_keys = config.get("api_keys", {})
+            value = api_keys.get(key)
+
+            return {
+                "success": True,
+                "value": value,
+                "message": f"Retrieved {key} API key" if value else f"No {key} API key stored",
+                "should_print": False
+            }
+
+        elif action == "set_setting":
+            if not key or value is None:
+                return {
+                    "success": False,
+                    "error": "Both key and value required for set_setting",
+                    "should_print": False
+                }
+
+            # Use update_config for general settings
+            return update_config(key, value)
+
+        elif action == "get_setting":
+            if not key:
+                return {
+                    "success": False,
+                    "error": "Key required for get_setting",
+                    "should_print": False
+                }
+
+            # Navigate config dict with dot notation
+            keys = key.split('.')
+            current = config
+            for k in keys:
+                if k not in current:
+                    return {
+                        "success": False,
+                        "value": None,
+                        "message": f"Setting {key} not found",
+                        "should_print": False
+                    }
+                current = current[k]
+
+            return {
+                "success": True,
+                "value": current,
+                "message": f"Retrieved {key} setting",
+                "should_print": False
+            }
+
+        else:
+            return {
+                "success": False,
+                "error": f"Unknown action: {action}",
+                "should_print": False
+            }
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "should_print": False
+        }
+
+
 def check_command_exists(command: str) -> Dict[str, Any]:
     """
     Check if a command/tool is installed on the system.
@@ -654,59 +769,117 @@ def get_git_info() -> Dict[str, Any]:
         }
 
 
-def web_search(query: str) -> Dict[str, Any]:
+def brave_search(query: str) -> Dict[str, Any]:
     """
-    Search the web for current information.
+    Search the web using Brave Search API.
 
-    Internal tool - use this for weather, news, current events, etc.
+    Requires BRAVE_SEARCH_API_KEY to be configured.
+    Get free API key at: https://brave.com/search/api/
 
     Args:
         query: Search query
 
     Returns:
         Dict with:
-        - results: Search results
+        - results: Search results with titles, URLs, descriptions
+        - should_print: False (internal tool)
+    """
+    try:
+        import urllib.request
+        import urllib.parse
+        import json
+
+        # Check for API key in config
+        config = load_config()
+        api_key = config.get("api_keys", {}).get("brave_search")
+
+        if not api_key:
+            # Also check environment variable
+            api_key = os.environ.get("BRAVE_SEARCH_API_KEY")
+
+        if not api_key:
+            return {
+                "results": None,
+                "error": "Brave Search API key not configured. Get a free key at https://brave.com/search/api/ then save it with: wtf here is my brave search api key YOUR_KEY",
+                "should_print": False
+            }
+
+        # Call Brave Search API
+        encoded_query = urllib.parse.quote(query)
+        url = f"https://api.search.brave.com/res/v1/web/search?q={encoded_query}&count=5"
+
+        req = urllib.request.Request(url)
+        req.add_header("X-Subscription-Token", api_key)
+        req.add_header("Accept", "application/json")
+
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode())
+
+        # Extract results
+        results = []
+        for item in data.get("web", {}).get("results", [])[:5]:
+            results.append({
+                "title": item.get("title", ""),
+                "url": item.get("url", ""),
+                "description": item.get("description", "")
+            })
+
+        if not results:
+            return {
+                "results": "No results found",
+                "should_print": False
+            }
+
+        # Format results as text
+        formatted = "\n\n".join([
+            f"{r['title']}\n{r['url']}\n{r['description']}"
+            for r in results
+        ])
+
+        return {
+            "results": formatted,
+            "should_print": False
+        }
+
+    except urllib.error.HTTPError as e:
+        if e.code == 401:
+            return {
+                "results": None,
+                "error": "Brave Search API key is invalid. Check your key at https://brave.com/search/api/",
+                "should_print": False
+            }
+        else:
+            return {
+                "results": None,
+                "error": f"Brave Search API error: {e.code} {e.reason}",
+                "should_print": False
+            }
+    except Exception as e:
+        return {
+            "results": None,
+            "error": f"Brave search failed: {str(e)}",
+            "should_print": False
+        }
+
+
+def web_instant_answers(query: str) -> Dict[str, Any]:
+    """
+    Get instant answers for encyclopedic queries using DuckDuckGo.
+
+    Internal tool - only works for well-known encyclopedic facts.
+
+    Args:
+        query: Search query
+
+    Returns:
+        Dict with:
+        - results: Instant answer results
         - should_print: False (internal tool)
     """
     try:
         import urllib.parse
         import json
         import urllib.request
-
-        query_lower = query.lower()
-
-        # Quick lookup for common documentation queries
-        doc_urls = {
-            'django': 'https://docs.djangoproject.com',
-            'react': 'https://react.dev',
-            'python': 'https://docs.python.org',
-            'javascript': 'https://developer.mozilla.org/en-US/docs/Web/JavaScript',
-            'typescript': 'https://www.typescriptlang.org/docs/',
-            'vue': 'https://vuejs.org/guide/',
-            'node': 'https://nodejs.org/docs/',
-            'express': 'https://expressjs.com',
-            'flask': 'https://flask.palletsprojects.com',
-            'fastapi': 'https://fastapi.tiangolo.com',
-            'nextjs': 'https://nextjs.org/docs',
-            'svelte': 'https://svelte.dev/docs',
-            'rust': 'https://doc.rust-lang.org',
-            'go': 'https://go.dev/doc/',
-            'docker': 'https://docs.docker.com',
-            'kubernetes': 'https://kubernetes.io/docs/',
-            'postgres': 'https://www.postgresql.org/docs/',
-            'mysql': 'https://dev.mysql.com/doc/',
-            'mongodb': 'https://docs.mongodb.com',
-            'redis': 'https://redis.io/docs/',
-        }
-
-        # Check if query is asking for docs
-        if 'docs' in query_lower or 'documentation' in query_lower:
-            for framework, url in doc_urls.items():
-                if framework in query_lower:
-                    return {
-                        "results": f"Documentation: {url}",
-                        "should_print": False
-                    }
 
         # Use DuckDuckGo instant answer API (no key required)
         encoded_query = urllib.parse.quote(query)
@@ -750,7 +923,9 @@ TOOLS = {
     "lookup_history": lookup_history,
     "get_config": get_config,
     "update_config": update_config,
-    "web_search": web_search,
+    "wtf_config": wtf_config,
+    "brave_search": brave_search,
+    "web_instant_answers": web_instant_answers,
     "check_command_exists": check_command_exists,
     "get_file_info": get_file_info,
     "list_directory": list_directory,
@@ -892,14 +1067,50 @@ def get_tool_definitions(env_context: Optional[Dict[str, Any]] = None) -> List[D
             }
         },
         {
-            "name": "web_search",
-            "description": "Search for documentation URLs and general knowledge. Has built-in lookups for 20+ frameworks (Django, React, Python, etc.). Also searches for encyclopedic facts. NOTE: Does NOT work for weather, news, local searches, or real-time data.",
+            "name": "wtf_config",
+            "description": "Manage wtf configuration - save API keys, update settings. Use when user says 'here is my X key' or 'save my Y setting'. Actions: 'set_api_key' (save API key), 'get_api_key' (retrieve key), 'set_setting' (general config), 'get_setting' (read config).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "string",
+                        "description": "Action: 'set_api_key', 'get_api_key', 'set_setting', 'get_setting'"
+                    },
+                    "key": {
+                        "type": "string",
+                        "description": "Key name (e.g., 'brave_search', 'anthropic', 'verbose')"
+                    },
+                    "value": {
+                        "type": "string",
+                        "description": "Value to set (for set actions)"
+                    }
+                },
+                "required": ["action"]
+            }
+        },
+        {
+            "name": "brave_search",
+            "description": "Search the web using Brave Search API - works for ANY web search (weather, news, docs, current events, etc.). Requires Brave Search API key. If not configured, tells user how to get free key (2000 searches/month) at https://brave.com/search/api/",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Search query (e.g., 'django docs', 'python programming language')"
+                        "description": "Web search query (works for anything)"
+                    }
+                },
+                "required": ["query"]
+            }
+        },
+        {
+            "name": "web_instant_answers",
+            "description": "Get instant answers for encyclopedic queries using DuckDuckGo Instant Answer API. LIMITATIONS: Only works for well-known encyclopedic facts (e.g., 'python programming language', 'what is rust'). Does NOT work for: weather, news, documentation URLs, local businesses, current events, or most real-world queries. Use brave_search instead for real web searches.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Encyclopedic query (e.g., 'python programming language', 'what is docker')"
                     }
                 },
                 "required": ["query"]

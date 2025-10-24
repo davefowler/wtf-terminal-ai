@@ -220,18 +220,28 @@ def query_ai_with_tools(
                 result = func(*args, **kwargs)
                 # If tool returns dict, convert to string
                 if isinstance(result, dict):
-                    if 'output' in result:
+                    # Check for error first
+                    if 'error' in result and result['error']:
+                        return f"Error: {result['error']}"
+                    # Then check for specific fields
+                    elif 'output' in result:
                         return result['output']
                     elif 'results' in result:
                         return result['results'] or "(no results)"
+                    elif 'message' in result:
+                        return result['message']
                     elif 'content' in result:
                         return result['content'] or "(empty)"
+                    elif 'value' in result:
+                        import json
+                        return json.dumps(result['value'], indent=2)
                     elif 'matches' in result:
                         return '\n'.join(result['matches']) if result['matches'] else "(no matches)"
                     elif 'files' in result:
                         return '\n'.join(result['files']) if result['files'] else "(no files found)"
-                    elif 'error' in result and result['error']:
-                        return f"Error: {result['error']}"
+                    elif 'entries' in result:
+                        import json
+                        return json.dumps(result['entries'], indent=2)
                     else:
                         # Convert whole dict to string
                         import json

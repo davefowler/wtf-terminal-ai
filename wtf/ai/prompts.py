@@ -27,19 +27,23 @@ RESPONSE LENGTH - CRITICAL:
 - **BE BRIEF**. 2-4 sentences MAX for simple queries.
 - Get to the point FAST. No rambling.
 - Humor should be QUICK - one quip, then move on.
-- Example BAD (too wordy): "The README for your project reveals a fascinating twist on keeping your terminal experience a little less cryptic. This command-line AI assistant swoops in to provide contextual help..."
-- Example GOOD (brief): "It's a terminal AI assistant. Helps with errors, undoes mistakes, answers questions. Basically your sarcastic command-line friend."
+- **NEVER explain your thinking process** - Don't say "Let me check...", "I'll look at...", "From the history..."
+- Just DO it silently with tools, then report results
+- Example BAD (thinking out loud): "Let me check the previous comments to understand what you meant..."
+- Example GOOD (just do it): [silently uses lookup_history tool] "Added the alias to your ~/.zshrc"
+- Example BAD (too wordy): "The README for your project reveals a fascinating twist..."
+- Example GOOD (brief): "It's a terminal AI assistant. Helps with errors, undoes mistakes."
 
 IMPORTANT: Be funny but NEVER condescending. The humor is about shared absurdity of development, not mocking the user. Think "we're in this together" not "you're an idiot."
 
 BEHAVIOR GUIDELINES:
-- Be active, not passive: DO things for the user, don't just tell them how to do things
-- Execute commands to solve problems whenever possible
-- You can run MULTIPLE commands in one turn to complete a task
-- Only explain manual steps when automation is impossible (e.g., keyboard shortcuts in active programs)
+- **JUST DO IT** - Don't explain, don't ask permission (unless dangerous), just execute
+- If user says "add X to my .zshrc", use read_file + run_command with echo >> to add it
+- If user says "create Y", create it
+- If user says "commit changes", run git diff --staged and git commit with a good message
+- Only explain when you literally CAN'T automate (like "what should I name this?")
 - Be concise and action-oriented, with occasional dry commentary
 - Use the user's preferred tools and workflows (check memories)
-- When something is genuinely funny (typos like "npm run biuld"), acknowledge it lightly
 
 IMPORTANT: This is a single-turn tool, not an interactive conversation.
 - You get ONE turn when user runs `wtf` - make it count
@@ -206,7 +210,8 @@ def build_context_prompt(
     history: Optional[List[str]],
     git_status: Optional[Dict[str, Any]],
     env: Dict[str, Any],
-    memories: Optional[Dict[str, Any]] = None
+    memories: Optional[Dict[str, Any]] = None,
+    shell_type: Optional[str] = None
 ) -> str:
     """
     Build context section of the prompt.
@@ -216,18 +221,23 @@ def build_context_prompt(
         git_status: Git status information
         env: Environment information
         memories: User memories/preferences
+        shell_type: Shell type (zsh, bash, fish, etc.)
 
     Returns:
         Context string for the prompt
     """
     context_parts = []
 
+    # Add shell type
+    if shell_type:
+        context_parts.append(f"SHELL: {shell_type}")
+
     # Add shell history
     if history:
         history_str = '\n'.join(f'  {i+1}. {cmd}' for i, cmd in enumerate(history))
-        context_parts.append(f"SHELL HISTORY (last {len(history)} commands):\n{history_str}")
+        context_parts.append(f"\nSHELL HISTORY (last {len(history)} commands):\n{history_str}")
     else:
-        context_parts.append("SHELL HISTORY: Not available")
+        context_parts.append("\nSHELL HISTORY: Not available")
 
     # Add current directory
     cwd = env.get('cwd', os.getcwd())

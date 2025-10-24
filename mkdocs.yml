@@ -68,6 +68,8 @@ nav:
       - Multi-Step: features/multi-step.md
   - Configuration:
       - Config Files: config/files.md
+      - API Keys: config/api-keys.md
+      - Web Search: config/web-search.md
       - Allowlist: config/allowlist.md
       - Custom Instructions: config/custom-instructions.md
   - Reference:

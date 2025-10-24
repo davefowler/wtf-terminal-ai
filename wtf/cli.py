@@ -532,10 +532,11 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
         env_context = get_environment_context()
         memories = load_memories()
         tool_env_context = build_tool_env_context(env_context, git_status)
+        shell_type = detect_shell()
 
     # Build prompts
     system_prompt = build_system_prompt()
-    context_prompt = build_context_prompt(commands, git_status, env_context, memories)
+    context_prompt = build_context_prompt(commands, git_status, env_context, memories, shell_type)
     full_prompt = f"{context_prompt}\n\nUSER QUERY:\n{query}"
 
     try:
