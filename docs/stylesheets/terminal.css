@@ -1,5 +1,8 @@
 /* Terminal-style overrides for wtf docs */
 
+/* Import IBM Plex Mono font */
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
+
 :root {
   --md-primary-fg-color: #000000;
   --md-accent-fg-color: #00ff00;
@@ -42,4 +45,39 @@ pre code {
 /* Monospace everything in dark mode for authentic terminal feel */
 [data-md-color-scheme="slate"] {
   font-family: 'IBM Plex Mono', 'Courier New', monospace;
+}
+
+/* Ensure proper font sizing and prevent zoom issues */
+html {
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* Smooth font loading - prevent layout shift */
+body {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
+  font-display: swap;
+}
+
+/* Ensure proper responsive behavior */
+.md-content {
+  max-width: 100%;
+}
+
+/* Prevent elements from overlapping during load */
+.md-sidebar {
+  z-index: 10;
+}
+
+.md-main {
+  z-index: 1;
+}
+
+/* Smooth transitions for layout changes */
+.md-sidebar,
+.md-main,
+.md-content {
+  transition: all 0.2s ease-in-out;
 }
