@@ -319,6 +319,41 @@ def web_search(query: str) -> Dict[str, Any]:
         import json
         import urllib.request
 
+        query_lower = query.lower()
+
+        # Quick lookup for common documentation queries
+        doc_urls = {
+            'django': 'https://docs.djangoproject.com',
+            'react': 'https://react.dev',
+            'python': 'https://docs.python.org',
+            'javascript': 'https://developer.mozilla.org/en-US/docs/Web/JavaScript',
+            'typescript': 'https://www.typescriptlang.org/docs/',
+            'vue': 'https://vuejs.org/guide/',
+            'node': 'https://nodejs.org/docs/',
+            'express': 'https://expressjs.com',
+            'flask': 'https://flask.palletsprojects.com',
+            'fastapi': 'https://fastapi.tiangolo.com',
+            'nextjs': 'https://nextjs.org/docs',
+            'svelte': 'https://svelte.dev/docs',
+            'rust': 'https://doc.rust-lang.org',
+            'go': 'https://go.dev/doc/',
+            'docker': 'https://docs.docker.com',
+            'kubernetes': 'https://kubernetes.io/docs/',
+            'postgres': 'https://www.postgresql.org/docs/',
+            'mysql': 'https://dev.mysql.com/doc/',
+            'mongodb': 'https://docs.mongodb.com',
+            'redis': 'https://redis.io/docs/',
+        }
+
+        # Check if query is asking for docs
+        if 'docs' in query_lower or 'documentation' in query_lower:
+            for framework, url in doc_urls.items():
+                if framework in query_lower:
+                    return {
+                        "results": f"Documentation: {url}",
+                        "should_print": False
+                    }
+
         # Use DuckDuckGo instant answer API (no key required)
         encoded_query = urllib.parse.quote(query)
         url = f"https://api.duckduckgo.com/?q={encoded_query}&format=json&no_html=1"
