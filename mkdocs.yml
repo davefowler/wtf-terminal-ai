@@ -1,0 +1,81 @@
+site_name: wtf - Terminal AI Assistant
+site_url: https://github.com/davefowler/wtf-terminal-ai
+site_description: A command-line AI assistant that provides contextual help based on terminal history
+site_author: wtf contributors
+repo_url: https://github.com/davefowler/wtf-terminal-ai
+repo_name: davefowler/wtf-terminal-ai
+
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: purple
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+  icon:
+    repo: fontawesome/brands/github
+
+markdown_extensions:
+  - admonition
+  - codehilite
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Installation: getting-started.md
+      - First Run: first-run.md
+      - Quick Tour: quick-tour.md
+  - Features:
+      - Undo: features/undo.md
+      - Memories: features/memories.md
+      - Permissions: features/permissions.md
+      - Multi-Step: features/multi-step.md
+  - Configuration:
+      - Config Files: config/files.md
+      - Allowlist: config/allowlist.md
+      - Custom Instructions: config/custom-instructions.md
+  - Reference:
+      - FAQ: faq.md
+      - Troubleshooting: troubleshooting.md
+      - Comparison: comparison.md
+  - About:
+      - Acknowledgments: acknowledgments.md
+      - Contributing: contributing.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/davefowler/wtf-terminal-ai

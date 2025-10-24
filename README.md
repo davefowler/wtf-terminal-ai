@@ -4,13 +4,21 @@ A command-line AI assistant that provides contextual help based on terminal hist
 
 ## What is this?
 
-`wtf` is a terminal AI assistant that understands your terminal context. Made a mistake? Just say `wtf undo`. Hit an error? Just type `wtf`. Need to install something? Type `wtf install [thing]`.
+`wtf` is a terminal AI assistant that is there for you when you f up. Hit an error?  Just type `wtf`.  Made a mistake? Just say `wtf undo`.  Need to install something? Type `wtf install [thing]`.  Forget the command?  No problem just ask `wtf can you back me out of this failed merge attempt?`.
 
 No flags to remember. No manual pages to consult. Just describe what you want.
 
 ## Installation
 
-### Via pip (recommended)
+### Via curl (recommended)
+
+One-liner with automatic collision detection:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/davefowler/wtf-terminal-ai/main/install.sh | bash
+```
+
+### Via pip
 
 ```bash
 pip install wtf-ai
@@ -24,7 +32,7 @@ cd wtf-terminal-ai
 pip install -e .
 ```
 
-## Quick Start
+## Quick Start and Examples
 
 **First use:** Just run `wtf` with any query. Setup happens automatically:
 
