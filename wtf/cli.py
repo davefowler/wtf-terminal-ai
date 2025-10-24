@@ -47,6 +47,13 @@ from wtf.conversation.memory import (
     search_memories,
 )
 from wtf.conversation.history import append_to_history
+from wtf.setup.hooks import (
+    setup_error_hook,
+    setup_not_found_hook,
+    remove_hooks,
+    show_hook_info,
+)
+from wtf.context.shell import detect_shell
 
 console = Console()
 
@@ -963,15 +970,49 @@ def main() -> None:
         sys.exit(0)
 
     if args.setup_error_hook:
-        console.print("[yellow]Not implemented yet[/yellow]")
+        shell = detect_shell()
+        console.print()
+        console.print(f"[cyan]Setting up error hook for {shell}...[/cyan]")
+        success, message = setup_error_hook(shell)
+        if success:
+            console.print(f"[green]✓[/green] {message}")
+            console.print()
+            console.print("[yellow]Restart your shell or run:[/yellow]")
+            from wtf.setup.hooks import get_shell_config_file
+            config_file = get_shell_config_file(shell)
+            console.print(f"  [cyan]source {config_file}[/cyan]")
+        else:
+            console.print(f"[red]✗[/red] {message}")
+        console.print()
         sys.exit(0)
 
     if args.setup_not_found_hook:
-        console.print("[yellow]Not implemented yet[/yellow]")
+        shell = detect_shell()
+        console.print()
+        console.print(f"[cyan]Setting up command-not-found hook for {shell}...[/cyan]")
+        success, message = setup_not_found_hook(shell)
+        if success:
+            console.print(f"[green]✓[/green] {message}")
+            console.print()
+            console.print("[yellow]Restart your shell or run:[/yellow]")
+            from wtf.setup.hooks import get_shell_config_file
+            config_file = get_shell_config_file(shell)
+            console.print(f"  [cyan]source {config_file}[/cyan]")
+        else:
+            console.print(f"[red]✗[/red] {message}")
+        console.print()
         sys.exit(0)
 
     if args.remove_hooks:
-        console.print("[yellow]Not implemented yet[/yellow]")
+        shell = detect_shell()
+        console.print()
+        console.print(f"[cyan]Removing wtf hooks from {shell}...[/cyan]")
+        success, message = remove_hooks(shell)
+        if success:
+            console.print(f"[green]✓[/green] {message}")
+        else:
+            console.print(f"[yellow]⚠[/yellow] {message}")
+        console.print()
         sys.exit(0)
 
     # Check if setup is needed (first run)

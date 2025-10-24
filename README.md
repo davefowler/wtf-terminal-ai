@@ -69,13 +69,49 @@ wtf can you get me the docs on connecting react to supabase
 - Python 3.10 or higher
 - An API key from Anthropic, OpenAI, or Google
 
+## Hooks - Want wtf all the time?
+
+Add wtf to your shell hooks for automatic assistance:
+
+### Error Hook
+Automatically suggest wtf when commands fail:
+```bash
+wtf --setup-error-hook
+```
+
+Now whenever a command fails, you'll see:
+```
+💥 Command failed with exit code 1
+   Run 'wtf' to analyze what went wrong
+```
+
+### Command Not Found Hook
+Suggest wtf when you mistype commands:
+```bash
+wtf --setup-not-found-hook
+```
+
+When you type a non-existent command:
+```
+❌ Command not found: gti
+   Try: wtf how do I gti
+```
+
+### Remove Hooks
+Changed your mind?
+```bash
+wtf --remove-hooks
+```
+
+**Supported shells:** zsh, bash, fish
+
 ## Configuration
 
 Much of the configuration you can just do through telling `wtf`.  Here are some config nouns that are useful in changing it:
 
  - memories - remembers things you tell it or it discovers like what text editor you prefer
  - personality - it has one.  don't like it, just tell it to change
- - allow list - commands that are a 
+ - allow list - commands that can run without asking
  - history - its log of all your chats
 
 ### Example config adjustments

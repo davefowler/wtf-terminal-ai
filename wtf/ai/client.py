@@ -212,69 +212,39 @@ def query_ai_with_tools(
         )
         llm_tools.append(llm_tool)
 
-    # Agent loop
+    # Use llm library's built-in tool execution
+    # The tools have implementations, so llm will execute them automatically
     all_tool_calls = []
-    tool_results = []
-    iteration = 0
+
+    # Track tool usage with callbacks
+    def after_tool_call(tool: llm.Tool, tool_call: llm.ToolCall, result: llm.ToolResult):
+        """Track tool calls for our records."""
+        all_tool_calls.append({
+            "name": tool.name,
+            "arguments": tool_call.arguments if hasattr(tool_call, 'arguments') else {},
+            "result": {"output": result.output if hasattr(result, 'output') else str(result)},
+            "iteration": len(all_tool_calls) + 1
+        })
 
     try:
-        while iteration < max_iterations:
-            iteration += 1
+        # Create conversation with automatic tool execution
+        conversation = model_obj.conversation(
+            tools=llm_tools,
+            after_call=after_tool_call,
+            chain_limit=max_iterations  # Limit tool chaining
+        )
 
-            # Query model with tools
-            response = model_obj.prompt(
-                prompt=prompt if iteration == 1 else None,
-                system=system_prompt,
-                tools=llm_tools,
-                tool_results=tool_results if tool_results else None,
-                stream=False
-            )
+        # Make request - llm handles tool calling automatically
+        response = conversation.prompt(
+            prompt=prompt,
+            system=system_prompt,
+            stream=False
+        )
 
-            # Check if model wants to use tools
-            if response.tool_calls():
-                # Execute tool calls
-                new_tool_results = []
-
-                for tool_call in response.tool_calls():
-                    tool_name = tool_call.name
-                    tool_args = tool_call.parameters
-
-                    # Execute the tool
-                    tool_func = TOOLS.get(tool_name)
-                    if tool_func:
-                        result = tool_func(**tool_args)
-
-                        # Track this tool call
-                        all_tool_calls.append({
-                            "name": tool_name,
-                            "arguments": tool_args,
-                            "result": result,
-                            "iteration": iteration
-                        })
-
-                        # Create tool result for next iteration
-                        new_tool_results.append(
-                            llm.ToolResult(
-                                tool_call=tool_call,
-                                result=str(result)
-                            )
-                        )
-
-                # Update tool_results for next iteration
-                tool_results = new_tool_results
-            else:
-                # No more tool calls - agent provided final response
-                return {
-                    "response": response.text(),
-                    "tool_calls": all_tool_calls,
-                    "iterations": iteration
-                }
-
-        # Hit max iterations
         return {
-            "response": response.text() if response else "Maximum iterations reached",
+            "response": response.text(),
             "tool_calls": all_tool_calls,
-            "iterations": iteration
+            "iterations": len(all_tool_calls) + 1
         }
 
     except Exception as e:
