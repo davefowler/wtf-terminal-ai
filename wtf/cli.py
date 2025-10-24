@@ -564,8 +564,8 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
 
                 console.print(f"[dim]$[/dim] [cyan]{cmd}[/cyan]")
                 if output.strip():
-                    # Add "│ " (box-drawing character) prefix for visual distinction
-                    indented_output = '\n'.join(f"[dim]│[/dim] {line}" for line in output.split('\n'))
+                    # Add "│ " (box-drawing character) prefix, dim the entire output
+                    indented_output = '\n'.join(f"[dim]│ {line}[/dim]" for line in output.split('\n'))
                     console.print(indented_output)
                 # Only show exit code if it's actually an error AND the output doesn't already explain it
                 # (e.g., "nothing to commit" is self-explanatory, no need for "Exit code: 1")
