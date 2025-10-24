@@ -43,10 +43,10 @@ dev = [
 wtf = "wtf.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/username/wtf-terminal-ai"
-Documentation = "https://wtf-ai.dev"
-Repository = "https://github.com/username/wtf-terminal-ai"
-Issues = "https://github.com/username/wtf-terminal-ai/issues"
+Homepage = "https://github.com/davefowler/wtf-terminal-ai"
+Documentation = "https://github.com/davefowler/wtf-terminal-ai"
+Repository = "https://github.com/davefowler/wtf-terminal-ai"
+Issues = "https://github.com/davefowler/wtf-terminal-ai/issues"
 
 [tool.setuptools]
 packages = ["wtf"]

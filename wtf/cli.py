@@ -183,8 +183,8 @@ It's not that complicated. Which is the point.
 
 [bold]MORE INFO[/bold]
 
-Documentation: https://wtf-ai.dev
-Issues: https://github.com/username/wtf-terminal-ai/issues
+Documentation: https://github.com/davefowler/wtf-terminal-ai
+Issues: https://github.com/davefowler/wtf-terminal-ai/issues
 
 Report bugs. Request features. Complain about our jokes. We'll read it.
 Probably.
