@@ -4,6 +4,14 @@ import os
 from typing import Iterator, Union, Optional, Dict, Any
 import llm
 
+from wtf.ai.errors import (
+    NetworkError,
+    InvalidAPIKeyError,
+    RateLimitError,
+    parse_api_error,
+    query_ai_with_retry,
+)
+
 
 def query_ai(
     prompt: str,
@@ -46,16 +54,18 @@ def query_ai(
         api_key = os.environ.get(env_var) if env_var else None
 
         if not api_key:
-            raise ValueError(
+            raise InvalidAPIKeyError(
                 f"API key not found in environment variable {env_var}. "
-                f"Please set it or run 'wtf --setup' to configure."
+                f"Please set it or run 'wtf --setup' to configure.",
+                provider=provider
             )
     else:
         # Load from config
         api_key = api_config.get('key')
         if not api_key:
-            raise ValueError(
-                "API key not configured. Please run 'wtf --setup' to configure."
+            raise InvalidAPIKeyError(
+                "API key not configured. Please run 'wtf --setup' to configure.",
+                provider=provider
             )
 
     # Get the model using llm library
@@ -67,7 +77,7 @@ def query_ai(
             model_obj.key = api_key
 
     except Exception as e:
-        raise Exception(f"Failed to load model '{configured_model}': {e}")
+        raise NetworkError(f"Failed to load model '{configured_model}': {e}")
 
     # Query the model
     try:
@@ -81,7 +91,47 @@ def query_ai(
             return response.text()
 
     except Exception as e:
-        raise Exception(f"AI query failed: {e}")
+        # Parse and re-raise as appropriate error type
+        wtf_error = parse_api_error(e, provider)
+        raise wtf_error
+
+
+def query_ai_safe(
+    prompt: str,
+    config: Dict[str, Any],
+    model: Optional[str] = None,
+    stream: bool = True,
+    max_retries: int = 3
+) -> Union[str, Iterator[str]]:
+    """
+    Query AI with automatic retry logic for transient failures.
+
+    This is a wrapper around query_ai() that adds retry logic with exponential
+    backoff for network errors and rate limiting.
+
+    Args:
+        prompt: The prompt to send to the AI
+        config: Configuration dictionary with API settings
+        model: Optional model override
+        stream: Whether to stream the response
+        max_retries: Maximum number of retries (default: 3)
+
+    Returns:
+        AI response (string or iterator)
+
+    Raises:
+        InvalidAPIKeyError: If API key is invalid (not retried)
+        NetworkError: If network fails after all retries
+        RateLimitError: If rate limited after all retries
+    """
+    return query_ai_with_retry(
+        query_func=query_ai,
+        prompt=prompt,
+        config=config,
+        max_retries=max_retries,
+        model=model,
+        stream=stream
+    )
 
 
 def test_api_connection(config: Dict[str, Any]) -> bool:

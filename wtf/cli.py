@@ -19,7 +19,12 @@ from wtf.context.shell import get_shell_history, build_history_context, detect_s
 from wtf.context.git import get_git_status
 from wtf.context.env import get_environment_context
 from wtf.ai.prompts import build_system_prompt, build_context_prompt
-from wtf.ai.client import query_ai
+from wtf.ai.client import query_ai_safe
+from wtf.ai.errors import (
+    InvalidAPIKeyError,
+    NetworkError,
+    RateLimitError,
+)
 from wtf.ai.response_parser import extract_commands
 from wtf.core.permissions import (
     load_allowlist,
@@ -627,12 +632,55 @@ USER QUERY:
 
 Please help the user with their query. If you need to run commands, propose them clearly."""
 
-            # Query AI with status indicator
+            # Query AI with status indicator and retry logic
             console.print()
             with console.status("🤖 Thinking...", spinner="dots"):
                 try:
-                    response = query_ai(full_prompt, config, stream=False)
+                    response = query_ai_safe(full_prompt, config, stream=False, max_retries=3)
                     context.ai_response = response
+                except InvalidAPIKeyError as e:
+                    state_machine.error = e
+                    state_machine.state = ConversationState.ERROR
+                    console.print()
+                    console.print(f"[red]✗ API Key Error:[/red] {str(e)}")
+                    console.print()
+                    console.print("To fix this:")
+                    if e.provider:
+                        key_urls = {
+                            "anthropic": "https://console.anthropic.com/settings/keys",
+                            "openai": "https://platform.openai.com/api-keys",
+                            "google": "https://makersuite.google.com/app/apikey"
+                        }
+                        url = key_urls.get(e.provider, "")
+                        if url:
+                            console.print(f"  1. Get a valid API key from: [cyan]{url}[/cyan]")
+                    console.print("  2. Run [cyan]wtf --setup[/cyan] to configure")
+                    console.print()
+                    raise
+                except RateLimitError as e:
+                    state_machine.error = e
+                    state_machine.state = ConversationState.ERROR
+                    console.print()
+                    console.print(f"[yellow]⚠ Rate Limit:[/yellow] {str(e)}")
+                    console.print()
+                    if e.retry_after:
+                        console.print(f"Please wait {e.retry_after} seconds before trying again.")
+                    else:
+                        console.print("Please wait a moment before trying again.")
+                    console.print()
+                    raise
+                except NetworkError as e:
+                    state_machine.error = e
+                    state_machine.state = ConversationState.ERROR
+                    console.print()
+                    console.print(f"[red]✗ Network Error:[/red] {str(e)}")
+                    console.print()
+                    console.print("Possible fixes:")
+                    console.print("  - Check your internet connection")
+                    console.print("  - Try again in a moment")
+                    console.print("  - Check if the AI service is experiencing issues")
+                    console.print()
+                    raise
                 except Exception as e:
                     state_machine.error = e
                     state_machine.state = ConversationState.ERROR
