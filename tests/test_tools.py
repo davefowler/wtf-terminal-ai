@@ -209,7 +209,7 @@ class TestToolRegistry:
         """Test get_tool_definitions returns valid definitions."""
         definitions = get_tool_definitions()
 
-        assert len(definitions) == 17  # Updated to 17: added serper_search and bing_search
+        assert len(definitions) == 21  # Updated to 21: added memory tools (save, get, delete, clear) + search tools
 
         for tool_def in definitions:
             # Each definition should have required fields

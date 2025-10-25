@@ -13,38 +13,43 @@
 
 ### Teaching wtf Your Preferences
 
-Just tell it naturally:
+Just tell it naturally - the AI understands what you mean:
 
 ```bash
+# Single preference
 $ wtf remember I use emacs for editing
-✓ Remembered: editor = emacs
 
-$ wtf remember I prefer pytest over unittest
-✓ Remembered: test_framework = pytest
-
-$ wtf remember I live in San Francisco
-✓ Remembered: location = San Francisco
+# Multiple preferences at once
+$ wtf remember I live in San Francisco and prefer emacs and use pytest for tests
 ```
+
+The AI will save each fact separately. No special syntax or commands to memorize.
 
 ### Viewing Your Memories
 
+Ask naturally - any phrasing works:
+
 ```bash
-$ wtf show me what you remember
-Your memories:
-- editor: emacs
-- test_framework: pytest
-- location: San Francisco
+$ wtf what do you remember about me?
+
+$ wtf show my preferences
+
+$ wtf list your memories of me
 ```
 
 ### Forgetting Things
 
-```bash
-$ wtf forget about my editor preference
-✓ Forgot: editor
+Tell it what to forget:
 
-$ wtf clear all memories
-⚠ This will delete all stored preferences. Continue? [y/N]
+```bash
+$ wtf forget about my editor
+
+$ wtf delete my location preference
+
+$ wtf forget everything
 ```
+
+**All memory operations work via natural language - no slash commands or special syntax needed.**
 
 ## How Memories Work
 

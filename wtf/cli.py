@@ -457,8 +457,30 @@ def _parse_memory_fact(fact: str) -> tuple[str, str]:
     return key, value
 
 
+def _forget_memory_by_key(key: str) -> None:
+    """Forget a specific memory by exact key."""
+    memories = load_memories()
+    if not memories:
+        console.print("[yellow]No memories to forget[/yellow]")
+        console.print()
+        return
+
+    if key not in memories:
+        console.print(f"[yellow]Memory '{key}' not found[/yellow]")
+        console.print()
+        console.print("Current memories:")
+        for mem_key in memories.keys():
+            console.print(f"  - {mem_key}")
+        console.print()
+        return
+
+    delete_memory(key)
+    console.print(f"[green]✓[/green] Forgot about: [cyan]{key}[/cyan]")
+    console.print()
+
+
 def _forget_memory(query: str) -> None:
-    """Find and forget a specific memory."""
+    """DEPRECATED: Old natural language forget function. Use _forget_memory_by_key instead."""
     memories = load_memories()
     if not memories:
         console.print("[yellow]No memories to forget[/yellow]")
@@ -527,34 +549,9 @@ def handle_setup_command(query: str) -> bool:
     return False
 
 
-def handle_memory_command(query: str) -> bool:
-    """Check if query is a memory command and handle it.
-
-    Args:
-        query: User's query string
-
-    Returns:
-        True if handled as memory command, False otherwise
-    """
-    query_lower = query.lower().strip()
-
-    if "show" in query_lower and "remember" in query_lower:
-        _show_memories()
-        return True
-
-    if "clear" in query_lower and "memor" in query_lower:
-        _clear_memories()
-        return True
-
-    if "remember" in query_lower and not ("show" in query_lower or "what" in query_lower):
-        _remember_fact(query)
-        return True
-
-    if "forget" in query_lower:
-        _forget_memory(query)
-        return True
-
-    return False
+# Memory commands removed - all memory operations now handled by AI tools
+# This keeps the interface simple: only CLI flags for system operations,
+# natural language for everything else
 
 
 def _setup_hook(hook_name: str, setup_func) -> None:
@@ -594,10 +591,6 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
     """
     # Check if this is a setup/configuration command
     if handle_setup_command(query):
-        return
-
-    # Check if this is a direct memory command
-    if handle_memory_command(query):
         return
 
     # Gather context
@@ -700,7 +693,8 @@ def _parse_arguments():
     parser.add_argument('--help', '-h', action='store_true', help='Show help message')
     parser.add_argument('--version', '-v', action='store_true', help='Show version')
     parser.add_argument('--config', action='store_true', help='Open config file')
-    parser.add_argument('--model', type=str, help='Override AI model')
+    parser.add_argument('--model', type=str, help='Override AI model (e.g., gpt-4, claude-3-5-sonnet)')
+    parser.add_argument('--provider', type=str, help='Override AI provider (anthropic, openai, google)')
     parser.add_argument('--verbose', action='store_true', help='Show diagnostic info')
     parser.add_argument('--reset', action='store_true', help='Reset config to defaults')
     parser.add_argument('--setup', action='store_true', help='Run setup wizard')
@@ -818,6 +812,15 @@ def _handle_query(args, config) -> None:
         # Set verbose/debug mode via environment variable
         if args.verbose:
             os.environ['WTF_DEBUG'] = '1'
+
+        # Override config with CLI flags if provided
+        if args.model:
+            config['api'] = config.get('api', {})
+            config['api']['model'] = args.model
+        if args.provider:
+            config['api'] = config.get('api', {})
+            config['api']['provider'] = args.provider
+
         # Use tool-based approach (simpler than state machine)
         handle_query_with_tools(query, config)
     else:

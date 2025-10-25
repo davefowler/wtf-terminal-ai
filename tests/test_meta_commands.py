@@ -1,15 +1,14 @@
 """
 Tests for meta commands (memory management).
 
-These tests verify that wtf can handle memory commands
-via the handle_memory_command function.
+These tests verify that wtf can handle memory operations
+via AI tools (save_user_memory, get_user_memories, delete_user_memory, clear_user_memories).
 """
 
 import pytest
 from pathlib import Path
 from wtf.core.config import get_config_dir
 from wtf.conversation.memory import load_memories, save_memory, delete_memory, clear_memories
-from wtf.cli import handle_memory_command
 
 
 class TestMemoryCommands:
@@ -39,46 +38,60 @@ class TestMemoryCommands:
                 memories_file.unlink()
 
     def test_remember_command_simple(self, clean_memories):
-        """Test: wtf remember I use emacs"""
-        result = handle_memory_command("remember I use emacs")
+        """Test: save_user_memory tool saves single memory"""
+        from wtf.ai.tools import save_user_memory
 
-        assert result is True  # Command was handled
+        result = save_user_memory("editor", "emacs")
+
+        assert result["success"] is True
+        assert "editor" in result["message"].lower()
 
         # Verify memory was saved
         memories = load_memories()
-        # Should save "editor" -> "emacs" or similar
-        memory_values = str(memories).lower()
-        assert "emacs" in memory_values
+        assert "editor" in memories
+        assert memories["editor"]["value"] == "emacs"
 
     def test_remember_command_preference(self, clean_memories):
-        """Test: wtf remember I prefer npm over yarn"""
-        result = handle_memory_command("remember I prefer npm over yarn")
+        """Test: save_user_memory tool saves preferences"""
+        from wtf.ai.tools import save_user_memory
 
-        assert result is True
+        result = save_user_memory("package_manager", "npm")
+
+        assert result["success"] is True
 
         memories = load_memories()
-        memory_values = str(memories).lower()
-        assert "npm" in memory_values
+        assert "package_manager" in memories
+        assert memories["package_manager"]["value"] == "npm"
 
     def test_show_memories_command(self, clean_memories):
-        """Test: wtf show me what you remember"""
+        """Test: get_user_memories tool"""
+        from wtf.ai.tools import get_user_memories
+
         # Set up some memories
         save_memory("editor", "emacs")
         save_memory("shell", "zsh")
 
-        # This should handle the query and print memories
-        result = handle_memory_command("show me what you remember")
+        # Get memories via tool
+        result = get_user_memories()
 
-        assert result is True  # Command was handled
+        assert result["success"] is True
+        assert result["count"] == 2
+        assert "editor" in result["memories"]
+        assert "shell" in result["memories"]
 
     def test_show_memories_empty(self, clean_memories):
-        """Test showing memories when none exist."""
-        result = handle_memory_command("show me what you remember")
+        """Test get_user_memories when none exist."""
+        from wtf.ai.tools import get_user_memories
 
-        assert result is True
+        result = get_user_memories()
+
+        assert result["success"] is True
+        assert result["count"] == 0
 
     def test_forget_specific_command(self, clean_memories):
-        """Test: wtf forget about my editor"""
+        """Test: delete_user_memory tool"""
+        from wtf.ai.tools import delete_user_memory
+
         # Set up a memory
         save_memory("editor", "emacs")
 
@@ -86,19 +99,19 @@ class TestMemoryCommands:
         memories = load_memories()
         assert "editor" in memories
 
-        # Forget command
-        result = handle_memory_command("forget about my editor")
+        # Delete via tool
+        result = delete_user_memory("editor")
 
-        assert result is True
+        assert result["success"] is True
 
-        # Verify it might be gone (depending on matching logic)
-        # The implementation tries to match by keywords
+        # Verify it's gone
         memories = load_memories()
-        # Implementation may or may not successfully delete
-        # Just verify the command was handled
+        assert "editor" not in memories
 
     def test_clear_memories(self, clean_memories):
-        """Test: wtf clear all memories"""
+        """Test: clear_user_memories tool"""
+        from wtf.ai.tools import clear_user_memories
+
         # Set up some memories
         save_memory("editor", "emacs")
         save_memory("shell", "zsh")
@@ -107,49 +120,29 @@ class TestMemoryCommands:
         memories = load_memories()
         assert len(memories) > 0
 
-        # Clear command
-        result = handle_memory_command("clear all memories")
+        # Clear via tool
+        result = clear_user_memories()
 
-        assert result is True
+        assert result["success"] is True
 
         # Verify all cleared
         memories = load_memories()
         assert len(memories) == 0
 
     def test_forget_everything(self, clean_memories):
-        """Test: wtf forget everything"""
+        """Test: clear_user_memories tool (alias test)"""
+        from wtf.ai.tools import clear_user_memories
+
         # Set up memories
         save_memory("editor", "emacs")
         save_memory("shell", "zsh")
 
-        result = handle_memory_command("clear all memories")
+        result = clear_user_memories()
 
-        assert result is True
+        assert result["success"] is True
 
         memories = load_memories()
         assert len(memories) == 0
-
-
-class TestNonMemoryCommands:
-    """Test that non-memory commands are not handled."""
-
-    def test_regular_query(self):
-        """Test that regular queries return False."""
-        result = handle_memory_command("what is my git status")
-
-        assert result is False
-
-    def test_help_query(self):
-        """Test that help queries are not memory commands."""
-        result = handle_memory_command("help me fix this error")
-
-        assert result is False
-
-    def test_command_query(self):
-        """Test that command requests are not memory commands."""
-        result = handle_memory_command("run git status")
-
-        assert result is False
 
 
 class TestMemoryPersistence:

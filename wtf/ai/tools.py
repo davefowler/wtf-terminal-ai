@@ -438,6 +438,158 @@ def wtf_config(action: str, key: Optional[str] = None, value: Optional[str] = No
         }
 
 
+def save_user_memory(key: str, value: str) -> Dict[str, Any]:
+    """
+    Save a single user preference or fact to memory.
+
+    IMPORTANT: This tool saves ONE memory at a time. If the user provides multiple
+    facts/preferences, call this tool multiple times (once per fact).
+
+    Use this when user says "remember that..." or provides preferences.
+    Examples:
+    - "remember I live in San Francisco" -> key="location", value="San Francisco"
+    - "I prefer emacs" -> key="editor", value="emacs"
+    - "I use pytest for testing" -> key="test_framework", value="pytest"
+
+    Args:
+        key: Memory key (e.g., "location", "editor", "package_manager")
+        value: Memory value (e.g., "San Francisco", "emacs", "npm")
+
+    Returns:
+        Dict with:
+        - success: Whether save succeeded
+        - message: Confirmation message
+        - should_print: False (internal tool)
+    """
+    try:
+        from wtf.conversation.memory import save_memory
+
+        if not key or not value:
+            return {
+                "success": False,
+                "error": "Both key and value required",
+                "should_print": False
+            }
+
+        save_memory(key, value)
+
+        return {
+            "success": True,
+            "message": f"Saved memory: {key} = {value}",
+            "should_print": False
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "should_print": False
+        }
+
+
+def get_user_memories() -> Dict[str, Any]:
+    """
+    Get all saved user memories/preferences.
+
+    Use when user asks "what do you remember?" or "show my preferences".
+
+    Returns:
+        Dict with:
+        - memories: Dict of all memories {key: {value, timestamp, confidence}}
+        - count: Number of memories
+        - should_print: False (internal tool)
+    """
+    try:
+        from wtf.conversation.memory import load_memories
+
+        memories = load_memories()
+
+        return {
+            "success": True,
+            "memories": memories,
+            "count": len(memories),
+            "should_print": False
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "should_print": False
+        }
+
+
+def delete_user_memory(key: str) -> Dict[str, Any]:
+    """
+    Delete a specific user memory by key.
+
+    Use when user says "forget about X" or "delete my Y preference".
+
+    Args:
+        key: Memory key to delete (e.g., "editor", "location")
+
+    Returns:
+        Dict with:
+        - success: Whether deletion succeeded
+        - message: Confirmation message
+        - should_print: False (internal tool)
+    """
+    try:
+        from wtf.conversation.memory import delete_memory, load_memories
+
+        memories = load_memories()
+
+        if key not in memories:
+            return {
+                "success": False,
+                "error": f"Memory '{key}' not found",
+                "available_keys": list(memories.keys()),
+                "should_print": False
+            }
+
+        delete_memory(key)
+
+        return {
+            "success": True,
+            "message": f"Deleted memory: {key}",
+            "should_print": False
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "should_print": False
+        }
+
+
+def clear_user_memories() -> Dict[str, Any]:
+    """
+    Clear ALL user memories.
+
+    Use when user says "forget everything" or "clear all my memories".
+
+    Returns:
+        Dict with:
+        - success: Whether clearing succeeded
+        - message: Confirmation message
+        - should_print: False (internal tool)
+    """
+    try:
+        from wtf.conversation.memory import clear_memories
+
+        clear_memories()
+
+        return {
+            "success": True,
+            "message": "Cleared all memories",
+            "should_print": False
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "should_print": False
+        }
+
+
 def check_command_exists(command: str) -> Dict[str, Any]:
     """
     Check if a command/tool is installed on the system.
@@ -1109,6 +1261,10 @@ TOOLS = {
     "get_config": get_config,
     "update_config": update_config,
     "wtf_config": wtf_config,
+    "save_user_memory": save_user_memory,
+    "get_user_memories": get_user_memories,
+    "delete_user_memory": delete_user_memory,
+    "clear_user_memories": clear_user_memories,
     "brave_search": brave_search,
     "serper_search": serper_search,
     "bing_search": bing_search,
@@ -1273,6 +1429,56 @@ def get_tool_definitions(env_context: Optional[Dict[str, Any]] = None) -> List[D
                     }
                 },
                 "required": ["action"]
+            }
+        },
+        {
+            "name": "save_user_memory",
+            "description": "Save ONE user preference or fact to memory. CRITICAL: Call this tool multiple times if user provides multiple facts. Use when user says 'remember...' Examples: 'remember I live in SF' -> key='location' value='San Francisco', 'I prefer emacs' -> key='editor' value='emacs', 'I use pytest' -> key='test_framework' value='pytest'. Always call once per fact.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "Memory key (e.g., 'location', 'editor', 'package_manager', 'test_framework')"
+                    },
+                    "value": {
+                        "type": "string",
+                        "description": "Memory value (e.g., 'San Francisco', 'emacs', 'npm', 'pytest')"
+                    }
+                },
+                "required": ["key", "value"]
+            }
+        },
+        {
+            "name": "get_user_memories",
+            "description": "Get all saved user memories/preferences. Use when user asks 'what do you remember about me?' or 'show my preferences'.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
+            }
+        },
+        {
+            "name": "delete_user_memory",
+            "description": "Delete a specific user memory by key. Use when user says 'forget about X' or 'delete my Y preference'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "type": "string",
+                        "description": "Memory key to delete (e.g., 'editor', 'location')"
+                    }
+                },
+                "required": ["key"]
+            }
+        },
+        {
+            "name": "clear_user_memories",
+            "description": "Clear ALL user memories. Use when user says 'forget everything' or 'clear all my memories'. This is destructive and permanent.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": []
             }
         },
         {

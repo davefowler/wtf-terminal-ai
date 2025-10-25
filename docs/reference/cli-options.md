@@ -16,6 +16,7 @@ wtf [OPTIONS] [QUERY]
 | `--setup` | | Run setup wizard |
 | `--reset` | | Reset all configuration |
 | `--model MODEL` | | Override AI model for this query |
+| `--provider PROVIDER` | | Override AI provider for this query |
 | `--verbose` | | Show diagnostic information |
 | `--setup-error-hook` | | Install error hook in shell |
 | `--setup-not-found-hook` | | Install command-not-found hook |
@@ -130,14 +131,38 @@ $ wtf --model claude-3-haiku "what's my git status?"
 ```
 
 The model must be:
-- From your configured provider
+- From your configured provider (or use `--provider` to switch)
 - Available via the `llm` library
 - A valid model ID
 
 **Examples:**
-- Anthropic: `claude-3.5-sonnet`, `claude-3-opus`, `claude-3-haiku`
+- Anthropic: `claude-3-5-sonnet-20241022`, `claude-3-opus`, `claude-3-haiku`
 - OpenAI: `gpt-4o`, `gpt-4`, `gpt-3.5-turbo`
 - Google: `gemini-pro`, `gemini-flash`
+
+### `--provider PROVIDER`
+
+Override the default AI provider for this query only.
+
+```bash
+# Temporarily use OpenAI instead of configured provider
+$ wtf --provider openai --model gpt-4 "your query"
+
+# Try Google's model without changing config
+$ wtf --provider google --model gemini-pro "your query"
+
+# Switch back to Anthropic for one query
+$ wtf --provider anthropic --model claude-3-5-sonnet "your query"
+```
+
+Valid providers:
+- `anthropic` - Claude models
+- `openai` - GPT models
+- `google` - Gemini models
+
+**Use case:** Testing different models without running `--setup` each time.
+
+**Tip:** Combine with `--model` to specify both provider and model in one command.
 
 ### `--verbose`
 
