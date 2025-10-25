@@ -862,6 +862,191 @@ def brave_search(query: str) -> Dict[str, Any]:
         }
 
 
+def serper_search(query: str) -> Dict[str, Any]:
+    """
+    Search the web using Serper.dev API (Google results).
+
+    Requires SERPER_API_KEY to be configured.
+    Get free API key at: https://serper.dev (2,500 searches/month free)
+
+    Args:
+        query: Search query
+
+    Returns:
+        Dict with:
+        - results: Search results with titles, URLs, descriptions
+        - should_print: False (internal tool)
+    """
+    try:
+        import urllib.request
+        import urllib.parse
+        import json
+
+        # Check for API key in config
+        config = load_config()
+        api_key = config.get("api_keys", {}).get("serper")
+
+        if not api_key:
+            # Also check environment variable
+            api_key = os.environ.get("SERPER_API_KEY")
+
+        if not api_key:
+            return {
+                "results": None,
+                "error": "Serper API key not configured. Get a free key at https://serper.dev then save it with: wtf here is my serper api key YOUR_KEY",
+                "should_print": False
+            }
+
+        # Call Serper API
+        url = "https://google.serper.dev/search"
+        data = json.dumps({"q": query}).encode('utf-8')
+
+        req = urllib.request.Request(url, data=data, method='POST')
+        req.add_header("X-API-KEY", api_key)
+        req.add_header("Content-Type", "application/json")
+
+        with urllib.request.urlopen(req, timeout=10) as response:
+            result = json.loads(response.read().decode())
+
+        # Extract results
+        results = []
+        for item in result.get("organic", [])[:5]:
+            results.append({
+                "title": item.get("title", ""),
+                "url": item.get("link", ""),
+                "description": item.get("snippet", "")
+            })
+
+        if not results:
+            return {
+                "results": "No results found",
+                "should_print": False
+            }
+
+        # Format results as text
+        formatted = "\n\n".join([
+            f"{r['title']}\n{r['url']}\n{r['description']}"
+            for r in results
+        ])
+
+        return {
+            "results": formatted,
+            "should_print": False
+        }
+
+    except urllib.error.HTTPError as e:
+        if e.code == 401 or e.code == 403:
+            return {
+                "results": None,
+                "error": "Serper API key is invalid. Check your key at https://serper.dev",
+                "should_print": False
+            }
+        else:
+            return {
+                "results": None,
+                "error": f"Serper API error: {e.code} {e.reason}",
+                "should_print": False
+            }
+    except Exception as e:
+        return {
+            "results": None,
+            "error": f"Serper search failed: {str(e)}",
+            "should_print": False
+        }
+
+
+def bing_search(query: str) -> Dict[str, Any]:
+    """
+    Search the web using Bing Search API.
+
+    Requires BING_SEARCH_API_KEY to be configured.
+    Get API key from Azure Portal: https://portal.azure.com
+
+    Args:
+        query: Search query
+
+    Returns:
+        Dict with:
+        - results: Search results with titles, URLs, descriptions
+        - should_print: False (internal tool)
+    """
+    try:
+        import urllib.request
+        import urllib.parse
+        import json
+
+        # Check for API key in config
+        config = load_config()
+        api_key = config.get("api_keys", {}).get("bing_search")
+
+        if not api_key:
+            # Also check environment variable
+            api_key = os.environ.get("BING_SEARCH_API_KEY")
+
+        if not api_key:
+            return {
+                "results": None,
+                "error": "Bing Search API key not configured. Get a key from Azure Portal then save it with: wtf here is my bing search api key YOUR_KEY",
+                "should_print": False
+            }
+
+        # Call Bing Search API
+        encoded_query = urllib.parse.quote(query)
+        url = f"https://api.bing.microsoft.com/v7.0/search?q={encoded_query}&count=5"
+
+        req = urllib.request.Request(url)
+        req.add_header("Ocp-Apim-Subscription-Key", api_key)
+
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode())
+
+        # Extract results
+        results = []
+        for item in data.get("webPages", {}).get("value", [])[:5]:
+            results.append({
+                "title": item.get("name", ""),
+                "url": item.get("url", ""),
+                "description": item.get("snippet", "")
+            })
+
+        if not results:
+            return {
+                "results": "No results found",
+                "should_print": False
+            }
+
+        # Format results as text
+        formatted = "\n\n".join([
+            f"{r['title']}\n{r['url']}\n{r['description']}"
+            for r in results
+        ])
+
+        return {
+            "results": formatted,
+            "should_print": False
+        }
+
+    except urllib.error.HTTPError as e:
+        if e.code == 401 or e.code == 403:
+            return {
+                "results": None,
+                "error": "Bing Search API key is invalid. Check your key in Azure Portal",
+                "should_print": False
+            }
+        else:
+            return {
+                "results": None,
+                "error": f"Bing Search API error: {e.code} {e.reason}",
+                "should_print": False
+            }
+    except Exception as e:
+        return {
+            "results": None,
+            "error": f"Bing search failed: {str(e)}",
+            "should_print": False
+        }
+
+
 def web_instant_answers(query: str) -> Dict[str, Any]:
     """
     Get instant answers for encyclopedic queries using DuckDuckGo.
@@ -925,6 +1110,8 @@ TOOLS = {
     "update_config": update_config,
     "wtf_config": wtf_config,
     "brave_search": brave_search,
+    "serper_search": serper_search,
+    "bing_search": bing_search,
     "web_instant_answers": web_instant_answers,
     "check_command_exists": check_command_exists,
     "get_file_info": get_file_info,
@@ -1089,8 +1276,36 @@ def get_tool_definitions(env_context: Optional[Dict[str, Any]] = None) -> List[D
             }
         },
         {
+            "name": "serper_search",
+            "description": "Search the web using Serper.dev (Google search results) - works for ANY web search (weather, news, docs, current events, etc.). PREFERRED search tool if user has Serper API key configured. 2,500 free searches/month at https://serper.dev",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Web search query"
+                    }
+                },
+                "required": ["query"]
+            }
+        },
+        {
+            "name": "bing_search",
+            "description": "Search the web using Bing Search API - works for ANY web search (weather, news, docs, current events, etc.). Use if user has Bing Search API key from Azure. 1,000 free searches/month.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Web search query"
+                    }
+                },
+                "required": ["query"]
+            }
+        },
+        {
             "name": "brave_search",
-            "description": "Search the web using Brave Search API - works for ANY web search (weather, news, docs, current events, etc.). Requires Brave Search API key. If not configured, tells user how to get free key (2000 searches/month) at https://brave.com/search/api/",
+            "description": "Search the web using Brave Search API - works for ANY web search (weather, news, docs, current events, etc.). Use if user has Brave Search API key. 2,000 free searches/month at https://brave.com/search/api/",
             "parameters": {
                 "type": "object",
                 "properties": {

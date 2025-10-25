@@ -1,134 +1,153 @@
-# Web Search Options for wtf
+# Web Search
 
-Currently wtf only has `web_instant_answers` which uses DuckDuckGo's Instant Answer API - very limited, only encyclopedic facts.
+By default, `wtf` has limited web search capabilities using DuckDuckGo's Instant Answer API - it only works for encyclopedic facts like "What is Python" or "Who is Ada Lovelace".
 
-## Options for Real Web Search
+For real web search (weather, news, documentation, current events), you'll need to add a search API key. It's a quick 5-minute setup that dramatically improves `wtf`'s ability to help.
 
-### 1. **Brave Search API** (Recommended)
-**Pros:**
-- Free tier: 2,000 queries/month
-- No credit card required for free tier
-- Good quality results
-- Simple REST API
-- Privacy-focused
+!!! note "Search Requires an API Key"
+    Unlike other features, web search (except basic DuckDuckGo facts) requires an external API key. Don't worry - the recommended options have generous free tiers and don't require a credit card.
 
-**Cons:**
-- Requires API key signup
+## Recommended Search APIs
 
-**Implementation:**
-```python
-def brave_search(query: str, api_key: str) -> Dict[str, Any]:
-    url = "https://api.search.brave.com/res/v1/web/search"
-    headers = {"X-Subscription-Token": api_key}
-    response = requests.get(url, headers=headers, params={"q": query})
-    return response.json()
-```
+### 1. Serper.dev (Recommended)
 
-**Setup for users:**
+**Best for:** Most users - simple, reliable, Google results
+
+- ✅ **2,500 free searches/month**
+- ✅ **Google search results** (high quality)
+- ✅ **No credit card required** for free tier
+- ✅ Very easy API
+
+**Get your key:** [serper.dev](https://serper.dev) (sign up takes 2 minutes)
+
+**Add it to wtf:**
 ```bash
-# Get API key from https://brave.com/search/api/
-export BRAVE_SEARCH_API_KEY="your-key"
+$ wtf here is my serper api key sk_YOUR_KEY_HERE
 ```
 
-### 2. **Serper.dev**
-**Pros:**
-- Free tier: 2,500 searches/month
-- Google search results
-- Very easy API
-- No credit card for free tier
-
-**Cons:**
-- Requires API key signup
-
-**Implementation:**
-```python
-def serper_search(query: str, api_key: str) -> Dict[str, Any]:
-    url = "https://google.serper.dev/search"
-    headers = {"X-API-KEY": api_key, "Content-Type": "application/json"}
-    data = {"q": query}
-    response = requests.post(url, headers=headers, json=data)
-    return response.json()
-```
-
-**Setup for users:**
+Or set manually:
 ```bash
-# Get API key from https://serper.dev
-export SERPER_API_KEY="your-key"
+export SERPER_API_KEY="sk_YOUR_KEY"
 ```
 
-### 3. **Tavily Search API**
-**Pros:**
-- Free tier: 1,000 searches/month
-- Designed for AI/LLM use cases
-- Returns cleaned, structured data
-- Good for research queries
+---
 
-**Cons:**
-- Requires credit card even for free tier
-- Smaller free tier
+### 2. Bing Search API
 
-**Implementation:**
-```python
-def tavily_search(query: str, api_key: str) -> Dict[str, Any]:
-    url = "https://api.tavily.com/search"
-    data = {"api_key": api_key, "query": query}
-    response = requests.post(url, json=data)
-    return response.json()
+**Best for:** Microsoft Azure users or those who need more searches
+
+- ✅ **1,000 free searches/month** (Free tier on Azure)
+- ✅ **Bing search results**
+- ⚠️ Requires Azure account
+- ⚠️ Slightly more complex setup
+
+**Get your key:** [Microsoft Azure Portal](https://portal.azure.com) → Create Bing Search resource
+
+**Add it to wtf:**
+```bash
+$ wtf here is my bing search api key YOUR_KEY
 ```
 
-### 4. **MCP Server (Model Context Protocol)**
-**Pros:**
-- User can choose their own search provider
-- Flexible, extensible
-- Can add other MCP tools too
-
-**Cons:**
-- More complex setup
-- Requires MCP server running
-- Users need to understand MCP
-
-**Implementation:**
-Would need to add MCP client support to wtf, then users can configure any MCP server including:
-- @modelcontextprotocol/server-brave-search
-- @modelcontextprotocol/server-fetch
-- Custom MCP servers
-
-### 5. **SearXNG (Self-hosted)**
-**Pros:**
-- No API key needed
-- Privacy-focused
-- Meta-search (queries multiple engines)
-- Free
-
-**Cons:**
-- User must self-host or use public instance
-- Public instances can be unreliable
-- Requires more setup
-
-**Implementation:**
-```python
-def searxng_search(query: str, instance_url: str = "https://searx.be") -> Dict[str, Any]:
-    url = f"{instance_url}/search"
-    params = {"q": query, "format": "json"}
-    response = requests.get(url, params=params)
-    return response.json()
+Or set manually:
+```bash
+export BING_SEARCH_API_KEY="YOUR_KEY"
 ```
 
-## Recommendation
+---
 
-**Start with Brave Search API:**
-1. Best balance of ease-of-use and quality
-2. Generous free tier
-3. No credit card required
-4. Simple implementation
+### 3. Brave Search
 
-**Implementation Plan:**
-1. Add `brave_search` tool that checks for `BRAVE_SEARCH_API_KEY` env var
-2. Only register tool if API key is present
-3. Update docs with signup link
-4. Keep `web_instant_answers` as fallback for users without key
+**Best for:** Privacy-conscious users
 
-This way:
-- Users without API key: get limited instant answers (current behavior)
-- Users with API key: get full web search (5-10 min setup)
-- Clean, optional upgrade path
+- ✅ **2,000 free searches/month**
+- ✅ **Privacy-focused** search engine
+- ✅ **No credit card required**
+- ✅ Independent search index
+
+**Get your key:** [brave.com/search/api](https://brave.com/search/api)
+
+**Add it to wtf:**
+```bash
+$ wtf here is my brave search api key YOUR_KEY
+```
+
+Or set manually:
+```bash
+export BRAVE_SEARCH_API_KEY="YOUR_KEY"
+```
+
+---
+
+## ✅ All Search Providers Implemented
+
+`wtf` will automatically use whichever search API key you have configured. Priority order:
+1. **Serper** (if configured) - Best quality, Google results
+2. **Brave** (if configured) - Privacy-focused
+3. **Bing** (if configured) - Microsoft Azure
+4. **DuckDuckGo** (always available) - Limited to encyclopedic facts only
+
+All three major search APIs are now fully implemented and ready to use!
+
+## Testing Your Search
+
+Once you've added a key, try it:
+
+```bash
+$ wtf "what's the weather in San Francisco?"
+$ wtf "find documentation for React hooks"
+$ wtf "latest news about AI"
+```
+
+With a search key, `wtf` can:
+- ✅ Check weather anywhere
+- ✅ Find documentation and guides
+- ✅ Look up current news and events
+- ✅ Research technical questions
+- ✅ Find specific information across the web
+
+## Troubleshooting
+
+### "Search API key not configured"
+
+You haven't added a search key yet. Run:
+
+```bash
+$ wtf here is my brave search api key YOUR_KEY
+```
+
+### "API key is invalid"
+
+Double-check you copied the entire key correctly. Visit the provider's website to verify your key is active.
+
+### "Rate limit exceeded"
+
+You've used up your free monthly searches. Either:
+- Wait until next month for the free tier to reset
+- Upgrade your plan with the provider
+- Switch to a different search provider
+
+## FAQ
+
+**Do I need this?**
+
+Only if you want `wtf` to:
+- Check weather
+- Find documentation
+- Look up news and current events
+- Research questions that require web search
+
+Basic terminal help works fine without it.
+
+**Which one should I use?**
+
+**Serper** for most people (when implemented). **Brave Search** for now. Both have generous free tiers.
+
+**Is this secure?**
+
+Your API key is stored in your system keychain (macOS/Linux) or securely in `~/.config/wtf/config.yaml`. Keys are only used to make search requests on your behalf.
+
+## Next Steps
+
+- [Setup](../setup.md) - Configure wtf for first use
+- [API Keys](api-keys.md) - Manage all your AI and search keys
+- [Configuration](files.md) - Learn about other configurable features

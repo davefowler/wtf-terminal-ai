@@ -227,6 +227,8 @@ def query_ai_with_tools(
         }
 
     except Exception as e:
+        # Extract provider from model name for error reporting
+        provider = configured_model.split("-")[0] if "-" in configured_model else "unknown"
         wtf_error = parse_api_error(e, provider)
         raise wtf_error
 

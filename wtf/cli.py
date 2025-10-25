@@ -493,6 +493,40 @@ def _forget_memory(query: str) -> None:
         console.print()
 
 
+def handle_setup_command(query: str) -> bool:
+    """Check if query is a setup/configuration command and handle it.
+
+    Args:
+        query: User's query string
+
+    Returns:
+        True if handled as setup command, False otherwise
+    """
+    query_lower = query.lower().strip()
+
+    # Patterns that indicate wanting to run setup/reconfigure
+    has_model_keywords = ("provider" in query_lower or "ai" in query_lower or "model" in query_lower)
+    has_known_models = any(name in query_lower for name in ["claude", "gpt", "gemini", "openai", "anthropic", "google"])
+
+    setup_patterns = [
+        "change" in query_lower and (has_model_keywords or has_known_models),
+        "switch" in query_lower and (has_model_keywords or has_known_models or "to" in query_lower),
+        "use" in query_lower and ("different" in query_lower or "another" in query_lower) and (has_model_keywords or has_known_models),
+        "reconfigure" in query_lower,
+        "setup" in query_lower and not "--setup" in query,  # Natural language, not flag
+        "reset" in query_lower and ("config" in query_lower or "settings" in query_lower or "everything" in query_lower),
+    ]
+
+    if any(setup_patterns):
+        console.print()
+        console.print("[cyan]I'll run the setup wizard to change your configuration.[/cyan]")
+        console.print()
+        run_setup_wizard()
+        return True
+
+    return False
+
+
 def handle_memory_command(query: str) -> bool:
     """Check if query is a memory command and handle it.
 
@@ -558,6 +592,10 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
         query: User's query string
         config: Configuration dictionary
     """
+    # Check if this is a setup/configuration command
+    if handle_setup_command(query):
+        return
+
     # Check if this is a direct memory command
     if handle_memory_command(query):
         return

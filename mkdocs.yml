@@ -61,18 +61,17 @@ nav:
       - Installation: getting-started.md
       - Setup: setup.md
       - Quick Tour: quick-tour.md
-  - Features:
-      - Undo: features/undo.md
-      - Memories: features/memories.md
-      - Permissions: features/permissions.md
-      - Multi-Step: features/multi-step.md
+  - Properties:
+      - Memories: properties/memories.md
+      - Keys: properties/keys.md
+      - Personality: properties/personality.md
+      - Hooks: properties/hooks.md
   - Configuration:
-      - Config Files: config/files.md
-      - API Keys: config/api-keys.md
+      - Overview: config/files.md
       - Web Search: config/web-search.md
       - Allowlist: config/allowlist.md
-      - Custom Instructions: config/custom-instructions.md
   - Reference:
+      - CLI Options: reference/cli-options.md
       - FAQ: faq.md
       - Troubleshooting: troubleshooting.md
       - Comparison: comparison.md

@@ -1,8 +1,6 @@
 # Quick Tour
 
-First off: if you want guidance, just ask `wtf`. You don't need to memorize anything. But for those who still like reading documentation (we see you), this tour covers what `wtf` can do.
-
-## How It Works
+First off if you want any guidance on how to use `wtf` just ask it.  You don't have to bother yourself with coming to docs like these and bothering yourself with learning.  But these are still here and mostly AI written for those of you that still like to read from web pages and documentation.  
 
 `wtf` is a natural language interface for your terminal. No flags to remember. No syntax to learn. Just describe what you want.
 

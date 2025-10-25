@@ -209,7 +209,7 @@ class TestToolRegistry:
         """Test get_tool_definitions returns valid definitions."""
         definitions = get_tool_definitions()
 
-        assert len(definitions) == 15  # Updated to 15 with wtf_config and brave_search
+        assert len(definitions) == 17  # Updated to 17: added serper_search and bing_search
 
         for tool_def in definitions:
             # Each definition should have required fields

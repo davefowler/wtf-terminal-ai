@@ -55,17 +55,38 @@ The `wtf_config` tool handles:
 - **set_setting**: Update general settings (behavior, shell, etc.)
 - **get_setting**: Read config values
 
-## Brave Search Integration
+## Web Search Integration
 
-Brave Search tool checks for API key in two places:
-1. Config file: `config.api_keys.brave_search`
-2. Environment variable: `BRAVE_SEARCH_API_KEY`
+All three web search providers (Serper, Bing, Brave) are now fully implemented.
 
-If no key found, tool returns helpful error:
+Each search tool checks for API key in two places:
+1. Config file: `config.api_keys.serper`, `config.api_keys.bing_search`, `config.api_keys.brave_search`
+2. Environment variables: `SERPER_API_KEY`, `BING_SEARCH_API_KEY`, `BRAVE_SEARCH_API_KEY`
+
+### Setting Search API Keys
+
+```bash
+# Serper (Recommended - Google results)
+wtf here is my serper api key sk-YOUR_KEY
+
+# Brave Search (Privacy-focused)
+wtf here is my brave search api key YOUR_KEY
+
+# Bing Search (Microsoft Azure)
+wtf here is my bing search api key YOUR_KEY
 ```
-Brave Search API key not configured. Get a free key at https://brave.com/search/api/
-then save it with: wtf here is my brave search api key YOUR_KEY
-```
+
+If no key found, tools return helpful errors with links to get free API keys.
+
+### Search Provider Priority
+
+wtf automatically uses whichever search API you have configured:
+1. **Serper** (preferred) - Best quality, Google results
+2. **Brave** - Privacy-focused
+3. **Bing** - Microsoft Azure
+4. **DuckDuckGo** - Always available, limited to encyclopedic facts
+
+See [Web Search](web-search.md) for more details.
 
 ## Security Note
 

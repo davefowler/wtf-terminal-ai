@@ -65,10 +65,11 @@ class TestCheckCommandExists:
 
     def test_existing_command(self):
         """Test checking for command that exists."""
-        result = check_command_exists("python")
+        # Use 'ls' which exists on all Unix-like systems
+        result = check_command_exists("ls")
         assert result["exists"] is True
         assert result["path"] is not None
-        assert "python" in result["path"]
+        assert "ls" in result["path"]
 
     def test_nonexistent_command(self):
         """Test checking for command that doesn't exist."""
