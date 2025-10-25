@@ -2,6 +2,10 @@
 
 ## Installation
 
+Welcome to the last manual installation you'll ever need.  In the future you'll just be able to do ```wtf install X```.  
+
+Take your time. Read through and debate the 3 different options. Reminice on the changing of an era.  
+
 ### Option 1: curl (Recommended)
 
 The installation script handles everything, including collision detection:
