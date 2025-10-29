@@ -187,10 +187,13 @@ echo ""
 echo "Setting up shell integration..."
 
 SHELL_CONFIG=""
+SHELL_TYPE=""
 if [ -n "$ZSH_VERSION" ] || [ -f "$HOME/.zshrc" ]; then
     SHELL_CONFIG="$HOME/.zshrc"
+    SHELL_TYPE="zsh"
 elif [ -n "$BASH_VERSION" ] || [ -f "$HOME/.bashrc" ]; then
     SHELL_CONFIG="$HOME/.bashrc"
+    SHELL_TYPE="bash"
 fi
 
 if [ -n "$SHELL_CONFIG" ]; then
@@ -198,7 +201,17 @@ if [ -n "$SHELL_CONFIG" ]; then
     if ! grep -q "alias $COMMAND_NAME=" "$SHELL_CONFIG" 2>/dev/null; then
         echo "" >> "$SHELL_CONFIG"
         echo "# wtf - disable glob expansion so you don't need quotes" >> "$SHELL_CONFIG"
-        echo "alias $COMMAND_NAME='noglob $COMMAND_NAME'" >> "$SHELL_CONFIG"
+        
+        if [ "$SHELL_TYPE" = "zsh" ]; then
+            # zsh has noglob built-in
+            echo "unalias $COMMAND_NAME 2>/dev/null || true  # Remove any existing alias" >> "$SHELL_CONFIG"
+            echo "alias $COMMAND_NAME='noglob $COMMAND_NAME'" >> "$SHELL_CONFIG"
+        else
+            # bash doesn't have noglob, so we need a function wrapper
+            echo "unalias $COMMAND_NAME 2>/dev/null || true  # Remove any existing alias" >> "$SHELL_CONFIG"
+            echo "$COMMAND_NAME() { set -f; command $COMMAND_NAME \"\$@\"; local ret=\$?; set +f; return \$ret; }" >> "$SHELL_CONFIG"
+        fi
+        
         echo -e "${GREEN}✓${NC} Added alias to $SHELL_CONFIG"
         echo ""
         echo -e "${CYAN}Important:${NC} Restart your shell or run:"
@@ -213,7 +226,12 @@ else
     echo -e "${YELLOW}⚠${NC}  Could not detect shell config file"
     echo ""
     echo "For better UX, add this to your shell config:"
+    echo ""
+    echo "For zsh:"
     echo -e "${CYAN}alias $COMMAND_NAME='noglob $COMMAND_NAME'${NC}"
+    echo ""
+    echo "For bash:"
+    echo -e "${CYAN}$COMMAND_NAME() { set -f; command $COMMAND_NAME \"\$@\"; local ret=\$?; set +f; return \$ret; }${NC}"
     echo ""
     echo "This prevents ? and * from being expanded by your shell."
 fi
