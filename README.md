@@ -14,6 +14,16 @@ A command-line AI assistant that provides contextual help based on terminal hist
 
 No flags to remember. No manual pages to consult. Just describe what you want.
 
+## Who is wtf for?
+
+### Non-engineers
+
+More and more people are now able to work with code and command lines: data analysts using git for dbt models, designers and product managers vibe coding prototype features, marketers working with static sites.  `wtf` helps with setups, remembering commands, and gets them out of jams.
+
+### Engineers
+
+There are so many tools and commands to remember.  You get stuck, you make mistakes, you get slowed down having to go read docs or switch over to ask your llm of choice.  But now you can just stay in your terminal and have it answer or even fix your problems as they come up.
+
 ## Installation
 
 ### Via curl (recommended)

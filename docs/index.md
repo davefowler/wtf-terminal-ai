@@ -16,6 +16,16 @@ Brain rot is real, as is the excess of information that insists on you rememberi
 
 Why spend time challenging your mind with learning tools, commands, and how things work when its so deliciously easy to just let the ai do the thinking for you?
 
+## Who is wtf for?
+
+### Data Analysts & Non-Engineers
+
+More and more people are now able to work with code and command lines: data analysts using git for dbt models, designers and product managers vibe coding prototype features, marketers working with static sites. `wtf` helps with setups, remembering commands, and gets them out of jams when things inevitably break.
+
+### Engineers
+
+There are so many tools and commands to remember. You get stuck, you make mistakes, you get slowed down having to go read docs or switch over to ask your llm of choice. But now you can just stay in your terminal and have it answer or even fix your problems as they come up.
+
 ## Quick Example
 
 ```bash

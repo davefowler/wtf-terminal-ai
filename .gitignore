@@ -145,3 +145,6 @@ cython_debug/
 # OS
 .DS_Store
 Thumbs.db
+
+# AI notes
+ai_notes/
