@@ -10,13 +10,13 @@ Hit an error? Just type `wtf`. Made a mistake? Say `wtf undo`. Need to install s
 
 No flags to remember. No manual pages written in ancient Sumerian. Just describe what you want in plain English (or whatever language you prefer, we're not picky).
 
-## Why does this exist?
+## wtf does this exist?
 
 Brain rot is real, as is the excess of information that insists on you remembering it.  Like any good drug `wtf` offers you relief from your brain rot condition while quickening its ascent.  
 
 Why spend time challenging your mind with learning tools, commands, and how things work when its so deliciously easy to just let the ai do the thinking for you?
 
-## Who is wtf for?
+## wtf is this for?
 
 ### Data Analysts & Non-Engineers
 
@@ -91,12 +91,83 @@ The setup wizard will ask you to:
 
 That's it. You're ready to make mistakes and let AI fix them.
 
+## Examples
+
+Stop reading docs like these.  In the future just ask `wtf`:
+
+```bash
+wtf what are some examples of what you can do?
+```
+
+
+chat with it and ask questions like any other llm
+
+```bash
+wtf what is the oldest city in the world?
+```
+
+get yourself out of a jam
+
+```bash
+wtf get me out of this githole
+```
+
+have it try to undo whatever you just f'd up
+
+```bash
+wtf undo
+```
+
+install something for you (politeness optional)
+
+```bash
+wtf please install x
+```
+
+figure out what you should install
+
+```bash
+wtf i want to check my internet speed.  can you install something to do that and check?
+```
+
+have it remember things about you, your preferences and your projects
+
+```bash
+wtf remember that i live in San Francisco and my favorite editor is emacs
+```
+
+search for things ([if search key added](config/web-search.md))
+
+```bash
+wtf is it nice outside?
+```
+
+pick yourself up
+
+```bash
+wtf i need some inspiration today.  hit me with a quote
+```
+
+replace your therapist (disclaimer: this is not and endorced use case)
+
+```bash
+wtf "okay here's a scenerio, tell me AITA? ..."
+```
+
+debug errors
+
+```bash
+wtf just happend?  fix?
+```
+
+
 ## What's Next?
 
 - [Getting Started](getting-started.md) - Detailed installation guide
 - [Setup](setup.md) - Configure wtf for first use
 - [Quick Tour](quick-tour.md) - See what wtf can do
 - [FAQ](faq.md) - Questions we've asked ourselves
+
 
 ## Philosophy
 
