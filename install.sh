@@ -134,18 +134,20 @@ echo ""
 echo "Installing wtf-ai..."
 echo ""
 
-# Install wtf-ai
-if pip3 install --user wtf-ai 2>&1 | grep -q "Successfully installed"; then
+# Install wtf-ai from GitHub (not yet published to PyPI)
+GITHUB_URL="git+https://github.com/${REPO}.git"
+
+if pip3 install --user "$GITHUB_URL" 2>&1 | grep -q "Successfully installed"; then
     echo -e "${GREEN}✓${NC} wtf-ai installed successfully"
 else
     # Try without --user flag
-    if pip3 install wtf-ai 2>&1 | grep -q "Successfully installed"; then
+    if pip3 install "$GITHUB_URL" 2>&1 | grep -q "Successfully installed"; then
         echo -e "${GREEN}✓${NC} wtf-ai installed successfully"
     else
         echo -e "${RED}✗${NC} Installation failed"
         echo ""
         echo "You can try installing manually:"
-        echo "  pip3 install wtf-ai"
+        echo "  pip3 install git+https://github.com/${REPO}.git"
         exit 1
     fi
 fi

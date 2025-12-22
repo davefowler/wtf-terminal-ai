@@ -23,7 +23,7 @@ Common issues and how to fix them.
 
 3. **Install in user mode:**
    ```bash
-   pip install --user wtf-ai
+   pip install --user git+https://github.com/davefowler/wtf-terminal-ai.git
    ```
 
 4. **Check PATH:**
@@ -57,7 +57,7 @@ Pick an alternative, or manually resolve:
 vim ~/.zshrc  # Remove old 'alias wtf=...'
 
 # Option 2: Install with different name
-pip install wtf-ai
+pip install git+https://github.com/davefowler/wtf-terminal-ai.git
 ln -s $(which wtf) ~/bin/wai
 ```
 
