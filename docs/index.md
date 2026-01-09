@@ -54,7 +54,7 @@ $ git rebase --abort
 - **Permission System**: Won't run dangerous commands without asking
 - **Undo Feature**: Analyzes history and suggests safe reversals
 - **Memories**: Learns your preferences ("I use npm, not yarn")
-- **Multi-Provider AI**: Works with Anthropic, OpenAI, or Google
+- **Multi-Provider AI**: Works with Anthropic, OpenAI, Google, or locally via Ollama
 - **Personality**: Dry, sardonic wit inspired by Gilfoyle and Marvin
 
 ## Installation
@@ -91,8 +91,8 @@ wtf what is the answer to life the universe and everything?
 
 The setup wizard will ask you to:
 
-1. Choose your AI provider (Anthropic, OpenAI, or Google)
-2. Enter your API key
+1. Choose your AI provider (Anthropic, OpenAI, Google, or local via Ollama)
+2. Enter your API key (or skip if using local models!)
 3. Select your default model
 
 That's it. You're ready to make mistakes and let AI fix them.

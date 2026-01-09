@@ -117,28 +117,25 @@ After reset, run `wtf --setup` to reconfigure.
 
 ### `--model MODEL`
 
-Override the default AI model for this query only.
+Override the AI model for a query, or change your default model permanently.
 
 ```bash
-# Use GPT-4 for this query (if you have OpenAI configured)
-$ wtf --model gpt-4 "explain quantum computing"
-
-# Use Claude Opus for a complex task
+# Use a specific model for this query only
+$ wtf --model gpt-4o "explain quantum computing"
 $ wtf --model claude-3-opus "refactor this code..."
+$ wtf --model llama3.2 "what's my git status?"  # Local model!
 
-# Use a faster model for simple queries
-$ wtf --model claude-3-haiku "what's my git status?"
+# Change your default model permanently (no query = save as default)
+$ wtf --model claude-sonnet-4
+✓ Default model changed from gpt-4o to claude-sonnet-4
 ```
 
-The model must be:
-- From your configured provider (or use `--provider` to switch)
-- Available via the `llm` library
-- A valid model ID
+**Available models:**
 
-**Examples:**
-- Anthropic: `claude-3-5-sonnet-20241022`, `claude-3-opus`, `claude-3-haiku`
-- OpenAI: `gpt-4o`, `gpt-4`, `gpt-3.5-turbo`
-- Google: `gemini-pro`, `gemini-flash`
+- **Anthropic:** `claude-sonnet-4`, `claude-3-5-sonnet`, `claude-opus-4`, `claude-3-5-haiku`
+- **OpenAI:** `gpt-4o`, `gpt-4o-mini`, `o1`, `o3`, `gpt-5`
+- **Google:** `gemini-2.0`, `gemini-1.5-pro`, `gemini-1.5-flash`
+- **Local (Ollama):** `llama3.2`, `mistral`, `codellama`, `deepseek-r1`, `qwen2.5`
 
 ### `--provider PROVIDER`
 
@@ -159,6 +156,7 @@ Valid providers:
 - `anthropic` - Claude models
 - `openai` - GPT models
 - `google` - Gemini models
+- `ollama` - Local models (Llama, Mistral, etc.)
 
 **Use case:** Testing different models without running `--setup` each time.
 
