@@ -103,17 +103,20 @@ The wizard can store it in `~/.config/wtf/config.json` for you.
 Each provider offers multiple models:
 
 **Anthropic:**
-- claude-3.5-sonnet (Recommended) - Best balance
-- claude-3-opus - Most capable, slower
-- claude-3-haiku - Fastest, lighter
+- claude-sonnet-4 (Recommended) - Latest, best balance
+- claude-3-5-sonnet - Previous generation Sonnet
+- claude-opus-4 - Most capable
+- claude-3-5-haiku - Fastest, cheapest
 
 **OpenAI:**
-- gpt-4o (Recommended) - Latest, best
+- gpt-4o (Recommended) - Great balance of speed and capability
 - gpt-4o-mini - Faster, cheaper
-- gpt-4-turbo - Previous generation
+- o1 / o3 - Advanced reasoning models
+- gpt-5 / gpt-4.5 - Latest generation (when available)
 
 **Google:**
-- gemini-1.5-pro (Recommended) - Most capable
+- gemini-2.0 - Latest generation
+- gemini-1.5-pro - Most capable
 - gemini-1.5-flash - Faster responses
 
 ## Verify Installation

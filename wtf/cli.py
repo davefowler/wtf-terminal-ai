@@ -219,7 +219,12 @@ def run_setup_wizard() -> Dict[str, Any]:
 
     if not available_models:
         console.print("[red]No models found![/red]")
-        console.print("Install model plugins: [cyan]llm install llm-claude-3[/cyan]")
+        console.print()
+        console.print("This is unexpected. Try reinstalling wtf:")
+        console.print("  [cyan]pip install --upgrade wtf-ai[/cyan]")
+        console.print()
+        console.print("Or install the llm library manually:")
+        console.print("  [cyan]pip install llm llm-anthropic llm-gemini[/cyan]")
         sys.exit(1)
 
     # Group by provider (parse from model class name or model_id)
@@ -231,34 +236,114 @@ def run_setup_wizard() -> Dict[str, Any]:
             grouped[provider_name] = []
         grouped[provider_name].append(model.model_id)
 
-    # Show popular models first
-    popular = [
-        ("claude-3.5-sonnet", "Anthropic Claude 3.5 Sonnet (recommended)"),
-        ("gpt-4o", "OpenAI GPT-4o"),
-        ("gpt-4o-mini", "OpenAI GPT-4o Mini (fast & cheap)"),
-        ("claude-3-opus", "Anthropic Claude 3 Opus"),
-        ("gemini-1.5-pro", "Google Gemini 1.5 Pro"),
-    ]
+    # Detect which API keys are available (local models don't need keys)
+    detected_keys = {
+        "anthropic": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "openai": bool(os.environ.get("OPENAI_API_KEY")),
+        "google": bool(os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")),
+        "local": True,  # Ollama models don't require API keys
+    }
 
-    # Show popular models that are available
-    model_choices = []
-    for model_id, description in popular:
-        if any(model_id in models for models in grouped.values()):
-            model_choices.append((model_id, description))
-
-    # Show them
-    for i, (model_id, description) in enumerate(model_choices, 1):
-        console.print(f"  [cyan]{i}.[/cyan] {description}")
-
-    # Add option to see all
-    console.print(f"  [cyan]{len(model_choices) + 1}.[/cyan] See all available models")
+    # Show which keys were detected
+    detected_api_keys = [k for k, v in detected_keys.items() if v and k != "local"]
+    if detected_api_keys:
+        console.print(f"[green]✓[/green] API keys detected: {', '.join(detected_api_keys)}")
+    
+    # Check if Ollama is available (local models)
+    has_local_models = any("llama" in m.lower() or "mistral" in m.lower() or "qwen" in m.lower() 
+                           or "deepseek" in m.lower() or "codellama" in m.lower()
+                           for m in all_available_ids) if 'all_available_ids' in dir() else False
+    # Note: all_available_ids not defined yet, we'll check grouped
+    has_local_models = any(
+        any("llama" in m.lower() or "mistral" in m.lower() or "qwen" in m.lower() 
+            or "deepseek" in m.lower() for m in models)
+        for models in grouped.values()
+    )
+    if has_local_models:
+        console.print(f"[green]✓[/green] Local models detected (Ollama)")
+    
     console.print()
 
-    choice = Prompt.ask(
-        "Select model",
-        choices=[str(i) for i in range(1, len(model_choices) + 2)],
-        default="1"
-    )
+    # Show popular models first (order matters - most recommended first)
+    # Model IDs use partial matching to handle version suffixes like -20241022
+    # Format: (model_id_prefix, description, provider_key)
+    popular = [
+        # Anthropic Claude models
+        ("claude-sonnet-4", "Anthropic Claude Sonnet 4 (recommended)", "anthropic"),
+        ("claude-3-5-sonnet", "Anthropic Claude 3.5 Sonnet", "anthropic"),
+        ("claude-3-7-sonnet", "Anthropic Claude 3.7 Sonnet", "anthropic"),
+        ("claude-opus-4", "Anthropic Claude Opus 4", "anthropic"),
+        ("claude-3-opus", "Anthropic Claude 3 Opus", "anthropic"),
+        ("claude-3-5-haiku", "Anthropic Claude 3.5 Haiku (fast & cheap)", "anthropic"),
+        # OpenAI models
+        ("gpt-5", "OpenAI GPT-5", "openai"),
+        ("gpt-4.5", "OpenAI GPT-4.5", "openai"),
+        ("o3", "OpenAI o3 (reasoning)", "openai"),
+        ("o1", "OpenAI o1 (reasoning)", "openai"),
+        ("gpt-4o", "OpenAI GPT-4o", "openai"),
+        ("gpt-4o-mini", "OpenAI GPT-4o Mini (fast & cheap)", "openai"),
+        ("o1-mini", "OpenAI o1 Mini (reasoning, cheaper)", "openai"),
+        # Google models
+        ("gemini-2.0", "Google Gemini 2.0", "google"),
+        ("gemini-1.5-pro", "Google Gemini 1.5 Pro", "google"),
+        ("gemini-1.5-flash", "Google Gemini 1.5 Flash (fast)", "google"),
+        # Local models (Ollama) - no API key needed
+        ("llama3.2", "Ollama Llama 3.2 (local, free)", "local"),
+        ("llama3.1", "Ollama Llama 3.1 (local, free)", "local"),
+        ("llama3", "Ollama Llama 3 (local, free)", "local"),
+        ("mistral", "Ollama Mistral (local, free)", "local"),
+        ("qwen2.5", "Ollama Qwen 2.5 (local, free)", "local"),
+        ("deepseek-r1", "Ollama DeepSeek R1 (local, reasoning)", "local"),
+        ("codellama", "Ollama CodeLlama (local, coding)", "local"),
+    ]
+
+    # Helper to check if a popular model matches any available model
+    def model_matches(model_id: str, available_ids: List[str]) -> Optional[str]:
+        """Check if model_id matches any available model. Returns the actual model ID if found."""
+        for available in available_ids:
+            # Exact match
+            if model_id == available:
+                return available
+            # model_id is prefix of available (e.g., "claude-3-5-sonnet" matches "claude-3-5-sonnet-20241022")
+            if available.startswith(model_id):
+                return available
+            # available is prefix of model_id (e.g., "gpt-4o" matches available "gpt-4o")
+            if model_id.startswith(available):
+                return available
+        return None
+
+    # Show popular models that are available
+    all_available_ids = [m for models in grouped.values() for m in models]
+    model_choices = []  # List of (model_id, description, provider)
+    for model_id, description, provider in popular:
+        matched = model_matches(model_id, all_available_ids)
+        if matched:
+            # Use the actual model ID from llm library (may have version suffix)
+            model_choices.append((matched, description, provider))
+
+    # Show them
+    if model_choices:
+        for i, (model_id, description, provider) in enumerate(model_choices, 1):
+            # Add "(keys detected)" if API key is available for this provider
+            if detected_keys.get(provider):
+                console.print(f"  [cyan]{i}.[/cyan] {description} [green](keys detected)[/green]")
+            else:
+                console.print(f"  [cyan]{i}.[/cyan] {description}")
+
+        # Add option to see all
+        console.print(f"  [cyan]{len(model_choices) + 1}.[/cyan] See all available models")
+        console.print()
+
+        choice = Prompt.ask(
+            "Select model",
+            choices=[str(i) for i in range(1, len(model_choices) + 2)],
+            default="1"
+        )
+    else:
+        # No popular models matched - show all available models
+        console.print("[dim]Showing all available models:[/dim]")
+        console.print()
+        choice = "1"  # Skip straight to all models view
 
     choice_idx = int(choice) - 1
 

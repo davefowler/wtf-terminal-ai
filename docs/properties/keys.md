@@ -6,9 +6,9 @@
 
 | Provider | Models | Best For |
 |----------|--------|----------|
-| **Anthropic** | Claude 3.5 Sonnet, Opus, Haiku | Best overall, great at following instructions |
-| **OpenAI** | GPT-4o, GPT-4, GPT-3.5 | Fast, widely available |
-| **Google** | Gemini Pro, Gemini Flash | Good balance of speed and quality |
+| **Anthropic** | Claude Sonnet 4, Claude Opus 4, Claude 3.5 Sonnet/Haiku | Best overall, great at following instructions |
+| **OpenAI** | GPT-4o, GPT-4o Mini, o1, o3, GPT-5 | Fast, widely available, reasoning models |
+| **Google** | Gemini 2.0, Gemini 1.5 Pro/Flash | Good balance of speed and quality |
 
 ## Getting an API Key
 
