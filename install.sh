@@ -61,10 +61,16 @@ COLLISION_FOUND=false
 COLLISION_TYPE=""
 COLLISION_LOCATION=""
 COLLISION_LINE=""
+IS_OUR_ALIAS=false
 
 # Check for alias in shell config files
 for config_file in ~/.zshrc ~/.bashrc ~/.bash_profile ~/.profile ~/.config/fish/config.fish; do
     if [ -f "$config_file" ]; then
+        # Check if it's OUR alias (noglob wtf) - that's fine, not a collision
+        if grep -qE "alias wtf='noglob wtf'|alias wtf=\"noglob wtf\"" "$config_file" 2>/dev/null; then
+            IS_OUR_ALIAS=true
+            break
+        fi
         if grep -q "alias wtf=" "$config_file" 2>/dev/null; then
             COLLISION_FOUND=true
             COLLISION_TYPE="alias"
@@ -82,14 +88,22 @@ for config_file in ~/.zshrc ~/.bashrc ~/.bash_profile ~/.profile ~/.config/fish/
     fi
 done
 
-# Check if wtf command exists in PATH
-if command -v wtf &> /dev/null && [ "$COLLISION_FOUND" = false ]; then
-    COLLISION_FOUND=true
-    COLLISION_TYPE="command"
-    COLLISION_LOCATION=$(which wtf)
+# Check if wtf command exists in PATH (and it's not our installed version)
+if command -v wtf &> /dev/null && [ "$COLLISION_FOUND" = false ] && [ "$IS_OUR_ALIAS" = false ]; then
+    # Check if it's our wtf by looking for wtf-ai in pip
+    if pip3 show wtf-ai &> /dev/null; then
+        IS_OUR_ALIAS=true  # It's our package, not a collision
+    else
+        COLLISION_FOUND=true
+        COLLISION_TYPE="command"
+        COLLISION_LOCATION=$(which wtf)
+    fi
 fi
 
-if [ "$COLLISION_FOUND" = true ]; then
+if [ "$IS_OUR_ALIAS" = true ]; then
+    echo -e "${GREEN}✓${NC} wtf-ai already installed, updating..."
+    COMMAND_NAME="wtf"
+elif [ "$COLLISION_FOUND" = true ]; then
     echo ""
     echo -e "${YELLOW}⚠️  Hold up! You already have a 'wtf' ${COLLISION_TYPE} defined.${NC}"
     echo ""
@@ -108,7 +122,14 @@ if [ "$COLLISION_FOUND" = true ]; then
     echo "  2) Install as 'wai' (shorter)"
     echo "  3) Cancel installation"
     echo ""
-    read -p "Choose [1-3]: " choice
+    
+    # Check if we're in interactive mode
+    if [ -t 0 ]; then
+        read -p "Choose [1-3]: " choice
+    else
+        echo "Non-interactive mode detected. Defaulting to 'wtfai'."
+        choice=1
+    fi
 
     case $choice in
         1)
@@ -175,25 +196,43 @@ if [ "$COMMAND_NAME" != "wtf" ]; then
     fi
 fi
 
-# Check if user bin is in PATH
+# Check if user bin is in PATH and add it if not
 USER_BIN=$(python3 -c "import site; print(site.USER_BASE + '/bin')" 2>/dev/null || echo "$HOME/.local/bin")
 
 if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
     echo ""
-    echo -e "${YELLOW}⚠${NC}  The installation directory is not in your PATH."
-    echo ""
-    echo "Add this to your shell config file (~/.zshrc or ~/.bashrc):"
-    echo ""
-    echo -e "${CYAN}export PATH=\"\$PATH:$USER_BIN\"${NC}"
-    echo ""
-    echo "Then restart your shell or run:"
-    echo -e "${CYAN}source ~/.zshrc${NC}  # or ~/.bashrc"
-    echo ""
+    echo "Adding $USER_BIN to PATH..."
+    
+    # Determine shell config file
+    PATH_CONFIG=""
+    if [ -f "$HOME/.zshrc" ]; then
+        PATH_CONFIG="$HOME/.zshrc"
+    elif [ -f "$HOME/.bashrc" ]; then
+        PATH_CONFIG="$HOME/.bashrc"
+    elif [ -f "$HOME/.bash_profile" ]; then
+        PATH_CONFIG="$HOME/.bash_profile"
+    fi
+    
+    if [ -n "$PATH_CONFIG" ]; then
+        # Check if we already added it
+        if ! grep -q "# wtf PATH" "$PATH_CONFIG" 2>/dev/null; then
+            echo "" >> "$PATH_CONFIG"
+            echo "# wtf PATH - Python user bin directory" >> "$PATH_CONFIG"
+            echo "export PATH=\"\$PATH:$USER_BIN\"" >> "$PATH_CONFIG"
+            echo -e "${GREEN}✓${NC} Added PATH to $PATH_CONFIG"
+        else
+            echo -e "${GREEN}✓${NC} PATH already configured"
+        fi
+    else
+        echo -e "${YELLOW}⚠${NC}  Could not find shell config. Add this manually:"
+        echo -e "${CYAN}export PATH=\"\$PATH:$USER_BIN\"${NC}"
+    fi
 fi
 
 # Add noglob alias for better UX (prevents ? and * from being expanded by shell)
 echo ""
 echo "Setting up shell integration..."
+NEEDS_SHELL_RESTART=false
 
 SHELL_CONFIG=""
 SHELL_TYPE=""
@@ -222,27 +261,24 @@ if [ -n "$SHELL_CONFIG" ]; then
         fi
         
         echo -e "${GREEN}✓${NC} Added alias to $SHELL_CONFIG"
-        echo ""
-        echo -e "${CYAN}Important:${NC} Restart your shell or run:"
-        echo -e "${CYAN}source $SHELL_CONFIG${NC}"
-        echo ""
-        echo "This lets you use: ${CYAN}$COMMAND_NAME are you there?${NC}"
-        echo "Instead of:        ${CYAN}$COMMAND_NAME \"are you there?\"${NC}"
+        NEEDS_SHELL_RESTART=true
     else
         echo -e "${GREEN}✓${NC} Shell alias already configured"
+        NEEDS_SHELL_RESTART=false
     fi
 else
     echo -e "${YELLOW}⚠${NC}  Could not detect shell config file"
     echo ""
     echo "For better UX, add this to your shell config:"
     echo ""
-    echo "For zsh:"
+    echo "For zsh (~/.zshrc):"
     echo -e "${CYAN}alias $COMMAND_NAME='noglob $COMMAND_NAME'${NC}"
     echo ""
-    echo "For bash:"
+    echo "For bash (~/.bashrc):"
     echo -e "${CYAN}$COMMAND_NAME() { set -f; command $COMMAND_NAME \"\$@\"; local ret=\$?; set +f; return \$ret; }${NC}"
     echo ""
     echo "This prevents ? and * from being expanded by your shell."
+    NEEDS_SHELL_RESTART=true
 fi
 
 echo ""
@@ -252,9 +288,21 @@ echo "║                    Installation Complete!                    ║"
 echo "║                                                              ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
-echo "Get started:"
+
+if [ "$NEEDS_SHELL_RESTART" = true ]; then
+    if [ -n "$SHELL_CONFIG" ]; then
+        echo -e "${YELLOW}➜ Restart your terminal, or run:${NC}"
+        echo ""
+        echo -e "  ${CYAN}source $SHELL_CONFIG${NC}"
+        echo ""
+    else
+        echo -e "${YELLOW}➜ Restart your terminal to use wtf.${NC}"
+        echo ""
+    fi
+fi
+echo "Try:"
 echo ""
-echo -e "  ${CYAN}$COMMAND_NAME \"what's in my git status?\"${NC}"
+echo -e "  ${CYAN}$COMMAND_NAME what's in my git status?${NC}"
 echo ""
 echo "The setup wizard will run automatically on first use."
 echo ""
