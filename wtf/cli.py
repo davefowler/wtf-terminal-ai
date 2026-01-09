@@ -929,6 +929,15 @@ def _handle_query(args, config) -> None:
 
         # Use tool-based approach (simpler than state machine)
         handle_query_with_tools(query, config)
+    elif args.model:
+        # --model without query = change default model permanently
+        old_model = config.get('api', {}).get('model', 'unknown')
+        config['api'] = config.get('api', {})
+        config['api']['model'] = args.model
+        save_config(config)
+        console.print()
+        console.print(f"[green]✓[/green] Default model changed from [dim]{old_model}[/dim] to [cyan]{args.model}[/cyan]")
+        console.print()
     else:
         # No query provided - analyze recent context
         console.print("[yellow]Analyzing recent commands...[/yellow]")
