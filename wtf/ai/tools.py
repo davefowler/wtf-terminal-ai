@@ -839,6 +839,142 @@ def check_package_installed(package: str, manager: str = "npm") -> Dict[str, Any
         }
 
 
+def write_file(file_path: str, content: str) -> Dict[str, Any]:
+    """
+    Write content to a file, creating it if it doesn't exist.
+
+    Use this to create new files or completely replace file contents.
+    For partial edits, use edit_file instead.
+
+    Args:
+        file_path: Path to the file to write
+        content: Content to write to the file
+
+    Returns:
+        Dict with:
+        - success: Whether write succeeded
+        - path: Absolute path to the file
+        - action: "created" or "overwritten"
+        - should_print: True (user should see this)
+    """
+    try:
+        path = Path(file_path).expanduser()
+        
+        # Make path absolute
+        if not path.is_absolute():
+            path = (Path.cwd() / path).resolve()
+        
+        # Check if file exists (for action message)
+        existed = path.exists()
+        
+        # Create parent directories if needed
+        path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Write the file
+        path.write_text(content, encoding='utf-8')
+        
+        return {
+            "success": True,
+            "path": str(path),
+            "action": "overwritten" if existed else "created",
+            "should_print": True,
+            "message": f"{'Overwrote' if existed else 'Created'} {path}"
+        }
+    except PermissionError:
+        return {
+            "success": False,
+            "error": f"Permission denied: {file_path}",
+            "should_print": True
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Error writing file: {e}",
+            "should_print": True
+        }
+
+
+def edit_file(file_path: str, old_str: str, new_str: str) -> Dict[str, Any]:
+    """
+    Edit a file by replacing text. For creating new files, use write_file.
+
+    Replaces the FIRST occurrence of old_str with new_str.
+    The old_str must match exactly (including whitespace/indentation).
+
+    Args:
+        file_path: Path to the file to edit
+        old_str: The exact text to find and replace
+        new_str: The text to replace it with
+
+    Returns:
+        Dict with:
+        - success: Whether edit succeeded
+        - path: Absolute path to the file
+        - action: "edited" or error description
+        - should_print: True (user should see this)
+    """
+    try:
+        path = Path(file_path).expanduser()
+        
+        # Make path absolute
+        if not path.is_absolute():
+            path = (Path.cwd() / path).resolve()
+        
+        if not path.exists():
+            return {
+                "success": False,
+                "error": f"File not found: {file_path}. Use write_file to create new files.",
+                "should_print": True
+            }
+        
+        if not path.is_file():
+            return {
+                "success": False,
+                "error": f"Not a file: {file_path}",
+                "should_print": True
+            }
+        
+        # Read current content
+        original = path.read_text(encoding='utf-8')
+        
+        # Check if old_str exists
+        if old_str not in original:
+            # Provide helpful error with preview
+            preview = original[:200] + "..." if len(original) > 200 else original
+            return {
+                "success": False,
+                "error": f"Text not found in {file_path}. The old_str must match exactly.",
+                "file_preview": preview,
+                "should_print": True
+            }
+        
+        # Replace first occurrence
+        edited = original.replace(old_str, new_str, 1)
+        
+        # Write back
+        path.write_text(edited, encoding='utf-8')
+        
+        return {
+            "success": True,
+            "path": str(path),
+            "action": "edited",
+            "should_print": True,
+            "message": f"Edited {path}"
+        }
+    except PermissionError:
+        return {
+            "success": False,
+            "error": f"Permission denied: {file_path}",
+            "should_print": True
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": f"Error editing file: {e}",
+            "should_print": True
+        }
+
+
 def get_git_info() -> Dict[str, Any]:
     """
     Get comprehensive git repository information.
@@ -1255,6 +1391,8 @@ def web_instant_answers(query: str) -> Dict[str, Any]:
 TOOLS = {
     "run_command": run_command,
     "read_file": read_file,
+    "write_file": write_file,
+    "edit_file": edit_file,
     "grep": grep,
     "glob_files": glob_files,
     "lookup_history": lookup_history,
@@ -1321,6 +1459,46 @@ def get_tool_definitions(env_context: Optional[Dict[str, Any]] = None) -> List[D
                     }
                 },
                 "required": ["file_path"]
+            }
+        },
+        {
+            "name": "write_file",
+            "description": "Create a new file or completely replace an existing file's contents. Use this for creating new files. For partial edits to existing files, use edit_file instead.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to the file to create/write"
+                    },
+                    "content": {
+                        "type": "string",
+                        "description": "Content to write to the file"
+                    }
+                },
+                "required": ["file_path", "content"]
+            }
+        },
+        {
+            "name": "edit_file",
+            "description": "Edit an existing file by finding and replacing text. Replaces the FIRST occurrence of old_str with new_str. The old_str must match exactly including whitespace and indentation. For creating new files, use write_file instead.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {
+                        "type": "string",
+                        "description": "Path to the file to edit"
+                    },
+                    "old_str": {
+                        "type": "string",
+                        "description": "The exact text to find (must match exactly)"
+                    },
+                    "new_str": {
+                        "type": "string",
+                        "description": "The text to replace it with"
+                    }
+                },
+                "required": ["file_path", "old_str", "new_str"]
             }
         },
         {

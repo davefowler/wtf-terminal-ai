@@ -624,12 +624,12 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
         # Process tool calls and print outputs
         console.print()
 
-        # Print run_command outputs (user-facing)
+        # Print user-facing tool outputs
         for tool_call in result["tool_calls"]:
             tool_name = tool_call["name"]
             tool_result = tool_call["result"]
 
-            # Only print run_command outputs (internal tools are hidden)
+            # run_command outputs
             if tool_name == "run_command" and tool_result.get("should_print", False):
                 cmd = tool_call["arguments"].get("command", "")
                 output = tool_result.get("output", "")
@@ -644,6 +644,27 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
                 # (e.g., "nothing to commit" is self-explanatory, no need for "Exit code: 1")
                 if exit_code != 0 and exit_code != 1:
                     console.print(f"[yellow]Exit code: {exit_code}[/yellow]")
+                console.print()
+
+            # write_file outputs
+            elif tool_name == "write_file" and tool_result.get("should_print", False):
+                file_path = tool_call["arguments"].get("file_path", "")
+                action = tool_result.get("action", "wrote")
+                if tool_result.get("success"):
+                    console.print(f"[green]✓[/green] {action.capitalize()} [cyan]{file_path}[/cyan]")
+                else:
+                    error = tool_result.get("error", "Unknown error")
+                    console.print(f"[red]✗[/red] Failed to write {file_path}: {error}")
+                console.print()
+
+            # edit_file outputs
+            elif tool_name == "edit_file" and tool_result.get("should_print", False):
+                file_path = tool_call["arguments"].get("file_path", "")
+                if tool_result.get("success"):
+                    console.print(f"[green]✓[/green] Edited [cyan]{file_path}[/cyan]")
+                else:
+                    error = tool_result.get("error", "Unknown error")
+                    console.print(f"[red]✗[/red] Failed to edit {file_path}: {error}")
                 console.print()
 
         # Print final agent response
