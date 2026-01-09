@@ -1,6 +1,6 @@
 # API Keys
 
-`wtf` needs an AI provider to work. You pick: Anthropic (Claude), OpenAI (GPT), or Google (Gemini).
+`wtf` needs an AI provider to work. You pick: Anthropic (Claude), OpenAI (GPT), Google (Gemini), or **run locally with Ollama** (no API key needed!).
 
 ## Supported Providers
 
@@ -9,6 +9,7 @@
 | **Anthropic** | Claude Sonnet 4, Claude Opus 4, Claude 3.5 Sonnet/Haiku | Best overall, great at following instructions |
 | **OpenAI** | GPT-4o, GPT-4o Mini, o1, o3, GPT-5 | Fast, widely available, reasoning models |
 | **Google** | Gemini 2.0, Gemini 1.5 Pro/Flash | Good balance of speed and quality |
+| **Local (Ollama)** | Llama 3.2, Mistral, Qwen, DeepSeek, CodeLlama | Free, private, offline - no API key needed |
 
 ## Getting an API Key
 
@@ -49,6 +50,39 @@ $ wtf here is my google api key AIza...
 ✓ API key saved
 ✓ Using gemini-pro as default model
 ```
+
+### Local Models (Ollama) - No API Key Needed!
+
+Run AI completely locally on your machine. Free, private, and works offline.
+
+1. Install Ollama from https://ollama.ai
+2. Pull a model:
+
+```bash
+# Pick one (or several!)
+ollama pull llama3.2        # Best all-around
+ollama pull mistral         # Fast and capable
+ollama pull codellama       # Great for coding
+ollama pull deepseek-r1     # Advanced reasoning
+ollama pull qwen2.5         # Strong multilingual
+```
+
+3. Run setup - wtf will auto-detect your models:
+
+```bash
+$ wtf --setup
+✓ Local models detected (Ollama)
+
+  1. Ollama Llama 3.2 (local, free)
+  2. Ollama Mistral (local, free)
+  ...
+```
+
+**Why local?**
+- 🔒 **100% private** - nothing leaves your machine
+- 💰 **Free forever** - no API costs
+- 🌐 **Works offline** - no internet needed
+- ⚡ **Fast** - no network latency (if you have good hardware)
 
 ## Setup During First Run
 

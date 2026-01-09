@@ -79,6 +79,20 @@ Select provider [1]: _
 - Free tier available
 - Get key: https://makersuite.google.com/app/apikey
 
+**Local Models (Ollama)** - No API key needed!
+- 100% private - runs on your machine
+- Free forever
+- Works offline
+- Install: https://ollama.ai
+
+```bash
+# Install Ollama, then pull a model
+ollama pull llama3.2
+
+# wtf will auto-detect it
+wtf --setup
+```
+
 ### API Key Setup
 
 You can store your API key in two ways:
@@ -118,6 +132,14 @@ Each provider offers multiple models:
 - gemini-2.0 - Latest generation
 - gemini-1.5-pro - Most capable
 - gemini-1.5-flash - Faster responses
+
+**Local (Ollama) - Free, Private:**
+- llama3.2 - Latest Llama, great all-around
+- llama3.1 / llama3 - Previous Llama versions
+- mistral - Fast and capable
+- qwen2.5 - Strong multilingual support
+- deepseek-r1 - Advanced reasoning
+- codellama - Optimized for code
 
 ## Verify Installation
 
