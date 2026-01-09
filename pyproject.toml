@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "A command-line AI assistant that provides contextual help based on terminal history"
 readme = "README.md"
 requires-python = ">=3.10"
-license = {text = "MIT"}
+license = "MIT"
 authors = [
     {name = "wtf-ai contributors"}
 ]
@@ -16,7 +16,6 @@ keywords = ["cli", "ai", "assistant", "terminal", "shell"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -50,5 +49,6 @@ Documentation = "https://github.com/davefowler/wtf-terminal-ai"
 Repository = "https://github.com/davefowler/wtf-terminal-ai"
 Issues = "https://github.com/davefowler/wtf-terminal-ai/issues"
 
-[tool.setuptools]
-packages = ["wtf"]
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["wtf", "wtf.*"]

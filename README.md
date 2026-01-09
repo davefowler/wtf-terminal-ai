@@ -40,7 +40,7 @@ curl -sSL https://raw.githubusercontent.com/davefowler/wtf-terminal-ai/main/inst
 pip install wtf-ai
 ```
 
-### From source
+### From source (for development)
 
 ```bash
 git clone https://github.com/davefowler/wtf-terminal-ai.git

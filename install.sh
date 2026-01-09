@@ -134,20 +134,29 @@ echo ""
 echo "Installing wtf-ai..."
 echo ""
 
-# Install wtf-ai
-if pip3 install --user wtf-ai 2>&1 | grep -q "Successfully installed"; then
+INSTALL_SUCCESS=false
+
+# Try with --user flag first
+if pip3 install --user wtf-ai > /tmp/wtf-install.log 2>&1; then
+    INSTALL_SUCCESS=true
+else
+    # Try without --user flag (needed for some systems/virtual envs)
+    if pip3 install wtf-ai > /tmp/wtf-install.log 2>&1; then
+        INSTALL_SUCCESS=true
+    fi
+fi
+
+if [ "$INSTALL_SUCCESS" = true ]; then
     echo -e "${GREEN}✓${NC} wtf-ai installed successfully"
 else
-    # Try without --user flag
-    if pip3 install wtf-ai 2>&1 | grep -q "Successfully installed"; then
-        echo -e "${GREEN}✓${NC} wtf-ai installed successfully"
-    else
-        echo -e "${RED}✗${NC} Installation failed"
-        echo ""
-        echo "You can try installing manually:"
-        echo "  pip3 install wtf-ai"
-        exit 1
-    fi
+    echo -e "${RED}✗${NC} Installation failed"
+    echo ""
+    echo "Installation log:"
+    cat /tmp/wtf-install.log
+    echo ""
+    echo "You can try installing manually:"
+    echo "  pip3 install wtf-ai"
+    exit 1
 fi
 
 # If using alternative name, create symlink
