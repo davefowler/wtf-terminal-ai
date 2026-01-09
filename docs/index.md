@@ -2,6 +2,12 @@
 
 Because working in the command line often leaves you asking `wtf`.
 
+## Quick install
+
+```bash
+curl -sSL https://raw.githubusercontent.com/davefowler/wtf-terminal-ai/main/install.sh | bash
+```
+
 ## What is this?
 
 `wtf` is a sometimes helpful, usually unpleasant AI assistant for your terminal. It is there for you when you mess up. 
