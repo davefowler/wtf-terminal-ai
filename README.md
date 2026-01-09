@@ -4,6 +4,12 @@ A command-line AI assistant that provides contextual help based on terminal hist
 
 📚 **[Full Documentation](https://davefowler.github.io/wtf-terminal-ai/)** | 🚀 **[Quick Start Guide](https://davefowler.github.io/wtf-terminal-ai/getting-started/)** | ❓ **[FAQ](https://davefowler.github.io/wtf-terminal-ai/faq/)**
 
+### Quick install
+
+```bash
+curl -sSL https://raw.githubusercontent.com/davefowler/wtf-terminal-ai/main/install.sh | bash
+```
+
 ---
 
 **⏪ Made a mistake?** Just say `wtf undo` - it analyzes your history and reverses your last command intelligently. Works for git commits, file deletions, package installs, and more.
