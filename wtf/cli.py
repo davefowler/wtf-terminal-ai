@@ -194,6 +194,34 @@ def print_version() -> None:
     console.print(f"wtf {__version__}")
 
 
+def _save_llm_key(key_name: str, api_key: str) -> None:
+    """Save an API key to llm's keys.json file.
+    
+    Args:
+        key_name: The key name (e.g., 'anthropic', 'openai', 'gemini')
+        api_key: The API key value
+    """
+    import json
+    
+    # Get llm's key storage location
+    keys_path = llm.user_dir() / "keys.json"
+    
+    # Load existing keys
+    if keys_path.exists():
+        with open(keys_path, 'r') as f:
+            keys = json.load(f)
+    else:
+        keys = {}
+    
+    # Add/update the key
+    keys[key_name] = api_key
+    
+    # Save back
+    keys_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(keys_path, 'w') as f:
+        json.dump(keys, f, indent=2)
+
+
 def run_setup_wizard() -> Dict[str, Any]:
     """
     Run the interactive setup wizard.
@@ -463,40 +491,70 @@ def run_setup_wizard() -> Dict[str, Any]:
     console.print()
     console.print(f"[green]✓[/green] Selected: [cyan]{selected_model}[/cyan]")
 
-    # 2. Configure API key
-    console.print()
-    console.print(f"[bold]Step 2:[/bold] Configure API access")
-    console.print()
-    console.print("[dim]The llm library handles API keys. You can:[/dim]")
-    console.print("  [dim]1. Set environment variables (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.)[/dim]")
-    console.print("  [dim]2. Use: [cyan]llm keys set <provider>[/cyan][/dim]")
-    console.print("  [dim]3. Let wtf store it (not recommended)[/dim]")
-    console.print()
-
-    use_llm_keys = Confirm.ask(
-        "Use llm's key management? (recommended)",
-        default=True
-    )
-
-    api_key = None
-    key_source = "llm"  # New: delegate to llm library
-
-    if not use_llm_keys:
+    # Check if API key is already available for this provider
+    key_source = "llm"  # Always use llm's key management
+    
+    key_urls = {
+        "anthropic": "https://console.anthropic.com/settings/keys",
+        "openai": "https://platform.openai.com/api-keys",
+        "google": "https://makersuite.google.com/app/apikey",
+    }
+    
+    # Map our provider names to llm key names
+    llm_key_names = {
+        "anthropic": "anthropic",
+        "openai": "openai", 
+        "google": "gemini",
+    }
+    
+    # For local models, no key needed
+    if selected_provider == "local":
         console.print()
-        api_key = Prompt.ask(
-            "Enter your API key",
-            password=True
-        )
-        key_source = "config"
-        console.print("[yellow]⚠[/yellow]  API key will be stored in [cyan]~/.config/wtf/config.json[/cyan]")
+        console.print("[green]✓[/green] Local models don't require an API key")
+    elif detected_keys.get(selected_provider):
+        # Key detected - let user choose to use it or enter a different one
+        console.print()
+        console.print(f"[green]✓[/green] API key detected in environment")
+        console.print()
+        console.print("  [cyan]1.[/cyan] Use detected key")
+        console.print("  [cyan]2.[/cyan] Enter a different key")
+        console.print()
+        
+        key_choice = Prompt.ask("Select", choices=["1", "2"], default="1")
+        
+        if key_choice == "2":
+            console.print()
+            key_url = key_urls.get(selected_provider, "")
+            if key_url:
+                console.print(f"Get a new key: [cyan]{key_url}[/cyan]")
+                console.print()
+            api_key = Prompt.ask("Paste your API key", password=True)
+            
+            # Save to llm's keys.json
+            _save_llm_key(llm_key_names.get(selected_provider, selected_provider), api_key)
+    else:
+        # No key detected - prompt user to enter one
+        console.print()
+        
+        key_url = key_urls.get(selected_provider, "")
+        
+        console.print(f"[bold]Step 3:[/bold] Enter your API key")
+        console.print()
+        if key_url:
+            console.print(f"Get one here: [cyan]{key_url}[/cyan]")
+            console.print()
+        
+        api_key = Prompt.ask("Paste your API key", password=True)
+        
+        # Save to llm's keys.json
+        _save_llm_key(llm_key_names.get(selected_provider, selected_provider), api_key)
+        console.print(f"[green]✓[/green] Key saved")
 
-    # Create config
+    # Create config (API keys are stored by llm, not in our config)
     config = {
         "version": "0.1.0",
         "api": {
             "model": selected_model,
-            "key_source": key_source,
-            "key": api_key
         },
         "behavior": {
             "auto_execute_allowlist": True,
