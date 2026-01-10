@@ -177,24 +177,51 @@ def query_ai_with_tools(
     # Store original tool functions for tracking
     original_tools = {tool_def["name"]: TOOLS[tool_def["name"]] for tool_def in get_tool_definitions()}
 
-    # Track tool usage with callbacks
+    # Tool descriptions for progress messages
+    tool_descriptions = {
+        "duckduckgo_search": "🔍 Searching the web...",
+        "tavily_search": "🔍 Searching the web...",
+        "serper_search": "🔍 Searching the web...",
+        "brave_search": "🔍 Searching the web...",
+        "bing_search": "🔍 Searching the web...",
+        "read_file": "📄 Reading file...",
+        "run_command": "⚡ Running command...",
+        "grep": "🔎 Searching files...",
+        "glob_files": "📂 Finding files...",
+        "get_git_info": "📊 Checking git status...",
+    }
+    
+    # Show progress BEFORE tool runs
+    def before_tool_call(tool: llm.Tool, tool_call: llm.ToolCall):
+        """Show progress indicator before tool executes."""
+        from rich.console import Console
+        console = Console()
+        
+        if tool and tool.name in tool_descriptions:
+            console.print(f"[dim]{tool_descriptions[tool.name]}[/dim]")
+
+    # Track tool usage with callbacks (after tool completes)
     def after_tool_call(tool: llm.Tool, tool_call: llm.ToolCall, result: llm.ToolResult):
         """Track tool calls and detect stuck loops."""
         import json
+        
         debug = os.environ.get('WTF_DEBUG') == '1'
         if debug:
             print(f"[DEBUG] after_tool_call FIRED: tool={tool.name}", file=sys.stderr)
 
-        # Get the original function result (as dict) by calling it again
-        # This is a bit wasteful but ensures we track the proper structure
-        tool_func = original_tools.get(tool.name)
-        if tool_func:
-            try:
-                original_result = tool_func(**tool_call.arguments)
-            except:
-                original_result = {"output": result.output if hasattr(result, 'output') else str(result)}
-        else:
-            original_result = {"output": result.output if hasattr(result, 'output') else str(result)}
+        # Get the result from the tool call (don't re-call it!)
+        # The result is already available from the llm library
+        result_output = result.output if hasattr(result, 'output') else str(result)
+        
+        # Try to parse as JSON if it looks like a dict
+        try:
+            import json
+            if result_output.strip().startswith('{'):
+                original_result = json.loads(result_output)
+            else:
+                original_result = {"output": result_output}
+        except:
+            original_result = {"output": result_output}
 
         current_args = tool_call.arguments if hasattr(tool_call, 'arguments') else {}
         
@@ -237,6 +264,7 @@ def query_ai_with_tools(
 
         conversation = model_obj.conversation(
             tools=llm_tools,
+            before_call=before_tool_call,
             after_call=after_tool_call,
             chain_limit=max_iterations  # Limit tool chaining
         )

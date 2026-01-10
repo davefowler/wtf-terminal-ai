@@ -25,7 +25,7 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   font:
-    text: 'IBM Plex Mono'
+    text: 'Inter'
     code: 'IBM Plex Mono'
   features:
     - navigation.instant
