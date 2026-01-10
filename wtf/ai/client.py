@@ -183,7 +183,6 @@ def query_ai_with_tools(
         import json
         debug = os.environ.get('WTF_DEBUG') == '1'
         if debug:
-            import sys
             print(f"[DEBUG] after_tool_call FIRED: tool={tool.name}", file=sys.stderr)
 
         # Get the original function result (as dict) by calling it again
@@ -220,7 +219,6 @@ def query_ai_with_tools(
                     for c in last_3
                 )
                 if all_same:
-                    import sys
                     print(f"[WARNING] Stuck loop detected: {tool.name} called 3x with same args", file=sys.stderr)
                     raise StuckLoopError(
                         f"Agent appears stuck - '{tool.name}' called 3 times with identical arguments. "
@@ -234,7 +232,6 @@ def query_ai_with_tools(
         debug = os.environ.get('WTF_DEBUG') == '1'
 
         if debug:
-            import sys
             print(f"[DEBUG] Creating conversation with {len(llm_tools)} tools", file=sys.stderr)
             print(f"[DEBUG] Tool names: {[t.name for t in llm_tools]}", file=sys.stderr)
 
@@ -249,8 +246,6 @@ def query_ai_with_tools(
             print(f"[DEBUG] Conversation tools count: {len(conversation.tools) if hasattr(conversation, 'tools') else 'N/A'}", file=sys.stderr)
 
         # Use chain() for automatic tool execution, not prompt()!
-        import sys
-        debug = os.environ.get('WTF_DEBUG') == '1'
 
         if debug:
             print(f"[DEBUG] About to call conversation.chain()", file=sys.stderr)

@@ -1538,10 +1538,10 @@ def web_instant_answers(query: str) -> Dict[str, Any]:
 
 def duckduckgo_search(query: str) -> Dict[str, Any]:
     """
-    Search the web using DuckDuckGo (via duckduckgo-search library).
+    Search the web using DuckDuckGo (via ddgs library).
 
     FREE and unlimited - no API key required!
-    Requires: pip install duckduckgo-search
+    Requires: pip install ddgs
 
     Args:
         query: Search query
@@ -1551,14 +1551,22 @@ def duckduckgo_search(query: str) -> Dict[str, Any]:
         - results: Search results with titles, URLs, descriptions
         - should_print: False (internal tool)
     """
+    # Try new ddgs package first, fall back to old duckduckgo_search
+    DDGS = None
     try:
-        from duckduckgo_search import DDGS
+        from ddgs import DDGS
     except ImportError:
+        try:
+            from duckduckgo_search import DDGS
+        except ImportError:
+            pass
+    
+    if DDGS is None:
         return {
             "results": None,
             "error": (
                 "DuckDuckGo search not available. Install it with:\n"
-                "  pip install duckduckgo-search\n\n"
+                "  pip install ddgs\n\n"
                 "This provides FREE unlimited web search with no API key needed!\n\n"
                 "Alternative search options:\n"
                 "  • Tavily: 1,000 free searches/month - https://tavily.com\n"
@@ -1569,9 +1577,9 @@ def duckduckgo_search(query: str) -> Dict[str, Any]:
         }
 
     try:
-        # Perform search
-        with DDGS() as ddgs:
-            results_list = list(ddgs.text(query, max_results=5))
+        # Perform search - new ddgs package doesn't use context manager
+        ddgs = DDGS()
+        results_list = list(ddgs.text(query, max_results=5))
 
         if not results_list:
             return {

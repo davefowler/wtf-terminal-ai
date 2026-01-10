@@ -636,6 +636,160 @@ def run_setup_wizard() -> Dict[str, Any]:
     return config
 
 
+def run_search_setup_wizard() -> None:
+    """
+    Run the interactive search setup wizard to configure web search providers.
+    """
+    console.print()
+    console.print(Panel.fit(
+        "[bold]Web Search Setup[/bold]\n\n"
+        "Configure a search provider for weather, news, docs, and current events.",
+        border_style="cyan"
+    ))
+    console.print()
+
+    # Define search providers with their info
+    # Note: "key" must match what tools.py expects in config["api_keys"]
+    search_providers = [
+        {
+            "key": "tavily",
+            "name": "Tavily",
+            "description": "AI-optimized search, clean results",
+            "free_tier": "1,000 searches/month",
+            "url": "https://tavily.com",
+            "env_var": "TAVILY_API_KEY",
+        },
+        {
+            "key": "serper",
+            "name": "Serper",
+            "description": "Google search results",
+            "free_tier": "2,500 searches/month",
+            "url": "https://serper.dev",
+            "env_var": "SERPER_API_KEY",
+        },
+        {
+            "key": "brave_search",
+            "name": "Brave Search",
+            "description": "Privacy-focused search",
+            "free_tier": "2,000 searches/month",
+            "url": "https://brave.com/search/api",
+            "env_var": "BRAVE_SEARCH_API_KEY",
+        },
+        {
+            "key": "bing_search",
+            "name": "Bing Search",
+            "description": "Microsoft Bing results",
+            "free_tier": "1,000 searches/month",
+            "url": "https://portal.azure.com",
+            "env_var": "BING_SEARCH_KEY",
+        },
+    ]
+
+    # Check for existing keys
+    console.print("[bold]Available providers:[/bold]")
+    console.print()
+    
+    # Load existing config to check for saved keys
+    try:
+        config = load_config()
+    except:
+        config = {}
+    
+    saved_keys = config.get("api_keys", {})
+    
+    for i, provider in enumerate(search_providers, 1):
+        status = ""
+        env_key = os.environ.get(provider["env_var"])
+        saved_key = saved_keys.get(provider["key"])
+        
+        if env_key:
+            status = " [green](key in env)[/green]"
+        elif saved_key:
+            status = " [green](key saved)[/green]"
+        
+        console.print(f"  [cyan]{i}.[/cyan] {provider['name']}{status}")
+        console.print(f"      [dim]{provider['description']} - {provider['free_tier']}[/dim]")
+        console.print()
+
+    console.print(f"  [cyan]{len(search_providers) + 1}.[/cyan] Skip for now")
+    console.print()
+
+    choice = Prompt.ask(
+        "Select a provider to configure",
+        choices=[str(i) for i in range(1, len(search_providers) + 2)],
+        default="1"
+    )
+
+    if int(choice) > len(search_providers):
+        console.print()
+        console.print("[yellow]Skipped search setup.[/yellow]")
+        console.print("You can run [cyan]wtf --setup-search[/cyan] later to configure.")
+        console.print()
+        return
+
+    selected = search_providers[int(choice) - 1]
+    
+    console.print()
+    console.print(f"[bold]Setting up {selected['name']}[/bold]")
+    console.print()
+    console.print(f"1. Go to: [cyan]{selected['url']}[/cyan]")
+    console.print("2. Sign up for a free account")
+    console.print("3. Copy your API key")
+    console.print()
+
+    # Check if key already exists
+    existing_env = os.environ.get(selected["env_var"])
+    existing_saved = saved_keys.get(selected["key"])
+    
+    if existing_env:
+        console.print(f"[green]✓[/green] Key already set in environment ({selected['env_var']})")
+        console.print()
+        use_existing = Prompt.ask(
+            "Use existing key?",
+            choices=["y", "n"],
+            default="y"
+        )
+        if use_existing.lower() == "y":
+            console.print()
+            console.print(f"[green]✓[/green] Using existing {selected['name']} key from environment")
+            console.print()
+            return
+    elif existing_saved:
+        console.print(f"[green]✓[/green] Key already saved in config")
+        console.print()
+        use_existing = Prompt.ask(
+            "Use existing key?",
+            choices=["y", "n"],
+            default="y"
+        )
+        if use_existing.lower() == "y":
+            console.print()
+            console.print(f"[green]✓[/green] Using existing {selected['name']} key")
+            console.print()
+            return
+
+    # Get new key
+    api_key = Prompt.ask("Paste your API key", password=True)
+    
+    if not api_key.strip():
+        console.print("[yellow]No key entered. Skipping.[/yellow]")
+        console.print()
+        return
+
+    # Save to config
+    if "api_keys" not in config:
+        config["api_keys"] = {}
+    config["api_keys"][selected["key"]] = api_key.strip()
+    save_config(config)
+
+    console.print()
+    console.print(f"[green]✓[/green] {selected['name']} API key saved!")
+    console.print()
+    console.print("Try it out:")
+    console.print("  [cyan]wtf what's the weather in SF?[/cyan]")
+    console.print()
+
+
 def _show_memories() -> None:
     """Display all stored memories."""
     memories = load_memories()
@@ -1000,6 +1154,7 @@ def _parse_arguments():
     parser.add_argument('--verbose', action='store_true', help='Show diagnostic info')
     parser.add_argument('--reset', action='store_true', help='Reset config to defaults')
     parser.add_argument('--setup', action='store_true', help='Run setup wizard')
+    parser.add_argument('--setup-search', action='store_true', help='Setup web search provider')
     parser.add_argument('--setup-error-hook', action='store_true', help='Setup error hook')
     parser.add_argument('--setup-not-found-hook', action='store_true', help='Setup not-found hook')
     parser.add_argument('--remove-hooks', action='store_true', help='Remove shell hooks')
@@ -1213,6 +1368,10 @@ def main() -> None:
 
     if args.setup:
         run_setup_wizard()
+        sys.exit(0)
+
+    if args.setup_search:
+        run_search_setup_wizard()
         sys.exit(0)
 
     _handle_hooks_flags(args)
