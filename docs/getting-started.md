@@ -209,7 +209,7 @@ If empty, set it in your shell config or run: `wtf --setup`
 
 **Python version issues**
 
-wtf requires Python 3.10+. Check your version:
+wtf requires Python 3.8+. Check your version:
 
 ```bash
 python3 --version
