@@ -158,9 +158,11 @@ done
 
 # Check if wtf command exists in PATH (and it's not our installed version)
 if command -v wtf &> /dev/null && [ "$COLLISION_FOUND" = false ] && [ "$IS_OUR_ALIAS" = false ]; then
-    # Check if it's our wtf by looking for wtf-ai in pip
+    # Check if it's our wtf by looking for wtf-ai in pip or pipx
     if $PIP_CMD show wtf-ai &> /dev/null; then
         IS_OUR_ALIAS=true  # It's our package, not a collision
+    elif command -v pipx &> /dev/null && pipx list 2>/dev/null | grep -q "wtf-ai"; then
+        IS_OUR_ALIAS=true  # It's our package installed via pipx
     else
         COLLISION_FOUND=true
         COLLISION_TYPE="command"
@@ -224,14 +226,46 @@ echo "Installing wtf-ai..."
 echo ""
 
 INSTALL_SUCCESS=false
+INSTALL_METHOD=""
 
-# Try with --user flag first (--upgrade ensures we get latest version)
-if $PIP_CMD install --user --upgrade wtf-ai > /tmp/wtf-install.log 2>&1; then
-    INSTALL_SUCCESS=true
-else
-    # Try without --user flag (needed for some systems/virtual envs)
+# Try installation methods in order of preference
+# 1. If pipx is already installed, use it (cleanest isolation)
+# 2. Try pip --user (works on most systems)
+# 3. Try pip --user --break-system-packages (for PEP 668 systems like Homebrew Python)
+# 4. Try pip without --user (for virtual envs)
+
+if command -v pipx &> /dev/null; then
+    # pipx is available - use it for clean isolation
+    if pipx install wtf-ai --force > /tmp/wtf-install.log 2>&1; then
+        INSTALL_SUCCESS=true
+        INSTALL_METHOD="pipx"
+    fi
+fi
+
+if [ "$INSTALL_SUCCESS" = false ]; then
+    # Try standard pip --user install
+    if $PIP_CMD install --user --upgrade wtf-ai > /tmp/wtf-install.log 2>&1; then
+        INSTALL_SUCCESS=true
+        INSTALL_METHOD="pip"
+    fi
+fi
+
+if [ "$INSTALL_SUCCESS" = false ]; then
+    # Check if we hit the PEP 668 externally-managed error
+    if grep -q "externally-managed-environment" /tmp/wtf-install.log 2>/dev/null; then
+        # Use --break-system-packages with --user (safe per PEP 668 recommendations)
+        if $PIP_CMD install --user --break-system-packages --upgrade wtf-ai > /tmp/wtf-install.log 2>&1; then
+            INSTALL_SUCCESS=true
+            INSTALL_METHOD="pip"
+        fi
+    fi
+fi
+
+if [ "$INSTALL_SUCCESS" = false ]; then
+    # Try without --user (for virtual environments)
     if $PIP_CMD install --upgrade wtf-ai > /tmp/wtf-install.log 2>&1; then
         INSTALL_SUCCESS=true
+        INSTALL_METHOD="pip"
     fi
 fi
 
@@ -244,14 +278,24 @@ else
     cat /tmp/wtf-install.log
     echo ""
     echo "You can try installing manually:"
-    echo "  $PIP_CMD install wtf-ai"
+    echo -e "  ${CYAN}$PIP_CMD install --user wtf-ai${NC}"
+    echo ""
+    echo "Or use pipx (recommended for CLI tools):"
+    echo -e "  ${CYAN}brew install pipx && pipx install wtf-ai${NC}"
     exit 1
+fi
+
+# Determine install directory based on install method
+if [ "$INSTALL_METHOD" = "pipx" ]; then
+    # pipx installs to ~/.local/bin
+    INSTALL_DIR="$HOME/.local/bin"
+else
+    # pip --user installs to Python's user site
+    INSTALL_DIR=$($PYTHON_CMD -c "import site; print(site.USER_BASE + '/bin')" 2>/dev/null || echo "$HOME/.local/bin")
 fi
 
 # If using alternative name, create symlink
 if [ "$COMMAND_NAME" != "wtf" ]; then
-    INSTALL_DIR=$($PYTHON_CMD -c "import site; print(site.USER_BASE + '/bin')")
-
     if [ ! -d "$INSTALL_DIR" ]; then
         mkdir -p "$INSTALL_DIR"
     fi
@@ -265,7 +309,7 @@ if [ "$COMMAND_NAME" != "wtf" ]; then
 fi
 
 # Check if user bin is in PATH and add it if not
-USER_BIN=$($PYTHON_CMD -c "import site; print(site.USER_BASE + '/bin')" 2>/dev/null || echo "$HOME/.local/bin")
+USER_BIN="$INSTALL_DIR"
 
 if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
     echo ""
