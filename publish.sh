@@ -28,6 +28,14 @@ echo "Bumping version: $CURRENT -> $VERSION"
 sed -i '' "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
 sed -i '' "s/^__version__ = .*/__version__ = \"$VERSION\"/" wtf/__init__.py
 
+# Commit and tag the version bump
+echo "Committing version bump..."
+git add pyproject.toml wtf/__init__.py
+git commit -m "v$VERSION"
+git tag "v$VERSION"
+git push origin main --tags
+
+echo ""
 echo "Publishing wtf-ai v$VERSION to PyPI..."
 
 # Clean and build
@@ -40,3 +48,4 @@ $PYTHON -m twine upload dist/*
 echo ""
 echo "✅ Published wtf-ai v$VERSION"
 echo "   https://pypi.org/project/wtf-ai/$VERSION/"
+echo "   https://github.com/davefowler/wtf-terminal-ai/releases/tag/v$VERSION"
