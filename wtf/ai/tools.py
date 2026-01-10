@@ -9,6 +9,13 @@ from pathlib import Path
 
 from wtf.conversation.history import get_recent_conversations
 from wtf.core.config import load_config, save_config, check_file_permission
+from wtf.core.permissions import (
+    load_allowlist,
+    load_denylist,
+    should_auto_execute,
+    prompt_for_permission,
+    add_to_allowlist,
+)
 
 
 def run_command(command: str) -> Dict[str, Any]:
@@ -17,6 +24,12 @@ def run_command(command: str) -> Dict[str, Any]:
 
     This tool PRINTS output to the user - it's for running actual commands
     that the user wants to see the results of.
+
+    Permission system:
+    - Safe read-only commands (ls, cat, git status, etc.) auto-execute
+    - Commands in user's allowlist auto-execute
+    - Commands in denylist are blocked
+    - Other commands prompt the user (with option to "always allow")
 
     Args:
         command: The shell command to execute
@@ -27,6 +40,55 @@ def run_command(command: str) -> Dict[str, Any]:
         - exit_code: Exit code
         - should_print: True (output should be shown to user)
     """
+    # Skip permission checks in test mode
+    skip_permissions = os.environ.get('WTF_SKIP_PERMISSIONS') == '1'
+    
+    if not skip_permissions:
+        # Load config and permission lists (with fallbacks for tests/first run)
+        try:
+            config = load_config()
+        except FileNotFoundError:
+            config = {}  # Use defaults
+        allowlist = load_allowlist()
+        denylist = load_denylist()
+        
+        # Check if command should auto-execute, ask, or deny
+        permission = should_auto_execute(command, allowlist, denylist, config)
+        
+        if permission == "deny":
+            return {
+                "output": f"Command blocked by denylist: {command}",
+                "exit_code": 1,
+                "should_print": True,
+                "blocked": True
+            }
+        
+        if permission == "ask":
+            # Extract base command for allowlist pattern (first word or first two for git/npm/etc)
+            parts = command.strip().split()
+            if len(parts) >= 2 and parts[0] in ("git", "npm", "pip", "cargo", "go", "docker", "kubectl"):
+                allowlist_pattern = f"{parts[0]} {parts[1]}"
+            else:
+                allowlist_pattern = parts[0] if parts else command
+            
+            # Prompt user for permission
+            response = prompt_for_permission(
+                cmd=command,
+                explanation="",  # AI should have explained already
+                allowlist_pattern=allowlist_pattern
+            )
+            
+            if response == "no":
+                return {
+                    "output": "Command cancelled by user",
+                    "exit_code": 130,
+                    "should_print": True,
+                    "cancelled": True
+                }
+            elif response == "yes_always":
+                add_to_allowlist(allowlist_pattern)
+    
+    # Execute the command
     try:
         result = subprocess.run(
             command,

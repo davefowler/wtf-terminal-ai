@@ -21,6 +21,13 @@ from wtf.ai.tools import (
 class TestRunCommand:
     """Tests for run_command tool."""
 
+    @pytest.fixture(autouse=True)
+    def skip_permissions(self):
+        """Skip permission prompts in tests."""
+        os.environ['WTF_SKIP_PERMISSIONS'] = '1'
+        yield
+        os.environ.pop('WTF_SKIP_PERMISSIONS', None)
+
     def test_simple_command(self):
         """Test running a simple command."""
         result = run_command("echo 'hello'")

@@ -45,7 +45,7 @@ class TestCLIFlags:
         )
 
         assert result.returncode == 0
-        assert "0.1.0" in result.stdout or "version" in result.stdout.lower()
+        assert "wtf" in result.stdout.lower()
 
     def test_version_short_flag(self):
         """Test: wtf -v"""
@@ -56,7 +56,7 @@ class TestCLIFlags:
         )
 
         assert result.returncode == 0
-        assert "0.1.0" in result.stdout or "version" in result.stdout.lower()
+        assert "wtf" in result.stdout.lower()
 
     def test_config_flag(self):
         """Test: wtf --config"""

@@ -702,7 +702,7 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
                 prompt=full_prompt,
                 config=config,
                 system_prompt=system_prompt,
-                max_iterations=10,
+                max_iterations=20,
                 env_context=tool_env_context
             )
 

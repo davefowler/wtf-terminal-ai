@@ -14,13 +14,18 @@ from wtf.ai.errors import (
 from wtf.ai.tools import TOOLS, get_tool_definitions
 
 
+class StuckLoopError(Exception):
+    """Raised when the agent appears to be stuck in a loop."""
+    pass
+
+
 
 def query_ai_with_tools(
     prompt: str,
     config: Dict[str, Any],
     system_prompt: Optional[str] = None,
     model: Optional[str] = None,
-    max_iterations: int = 10,
+    max_iterations: int = 20,
     env_context: Optional[Dict[str, Any]] = None
 ) -> Dict[str, Any]:
     """
@@ -30,14 +35,17 @@ def query_ai_with_tools(
     1. Agent responds or requests tool calls
     2. Tools execute (some print output, some are internal)
     3. Tool results go back to agent
-    4. Loop until agent provides final response (max 10 iterations)
+    4. Loop until agent provides final response (max 20 iterations)
+
+    Includes stuck-loop detection: if the same tool is called 3+ times
+    with identical arguments, we abort early to prevent infinite loops.
 
     Args:
         prompt: User's query/prompt
         config: Configuration dictionary
         system_prompt: System prompt (optional)
         model: Optional model override
-        max_iterations: Max tool call loops (default: 10)
+        max_iterations: Max tool call loops (default: 20)
         env_context: Optional environment context for tool filtering
 
     Returns:
@@ -148,7 +156,8 @@ def query_ai_with_tools(
 
     # Track tool usage with callbacks
     def after_tool_call(tool: llm.Tool, tool_call: llm.ToolCall, result: llm.ToolResult):
-        """Track tool calls for our records."""
+        """Track tool calls and detect stuck loops."""
+        import json
         debug = os.environ.get('WTF_DEBUG') == '1'
         if debug:
             import sys
@@ -165,15 +174,37 @@ def query_ai_with_tools(
         else:
             original_result = {"output": result.output if hasattr(result, 'output') else str(result)}
 
+        current_args = tool_call.arguments if hasattr(tool_call, 'arguments') else {}
+        
         all_tool_calls.append({
             "name": tool.name,
-            "arguments": tool_call.arguments if hasattr(tool_call, 'arguments') else {},
+            "arguments": current_args,
             "result": original_result if isinstance(original_result, dict) else {"output": str(original_result)},
             "iteration": len(all_tool_calls) + 1
         })
 
         if debug:
             print(f"[DEBUG] Tracked tool call #{len(all_tool_calls)}: {tool.name}", file=sys.stderr)
+
+        # Stuck loop detection: check if last 3 calls are identical
+        if len(all_tool_calls) >= 3:
+            last_3 = all_tool_calls[-3:]
+            # Check if all 3 have same name and arguments
+            try:
+                first_sig = (last_3[0]["name"], json.dumps(last_3[0]["arguments"], sort_keys=True))
+                all_same = all(
+                    (c["name"], json.dumps(c["arguments"], sort_keys=True)) == first_sig
+                    for c in last_3
+                )
+                if all_same:
+                    import sys
+                    print(f"[WARNING] Stuck loop detected: {tool.name} called 3x with same args", file=sys.stderr)
+                    raise StuckLoopError(
+                        f"Agent appears stuck - '{tool.name}' called 3 times with identical arguments. "
+                        f"Try rephrasing your request or breaking it into smaller steps."
+                    )
+            except (TypeError, json.JSONDecodeError):
+                pass  # Can't serialize args, skip check
 
     try:
         # Create conversation with automatic tool execution
