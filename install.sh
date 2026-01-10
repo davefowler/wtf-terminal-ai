@@ -21,20 +21,37 @@ echo "║                                                              ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Find a suitable Python version (3.10+)
-REQUIRED_VERSION="3.10"
+# Find a suitable Python version (3.8+, prefer newest)
+REQUIRED_VERSION="3.8"
 PYTHON_CMD=""
 PYTHON_VERSION=""
 
-# Try different Python commands in order of preference
-for cmd in python3.13 python3.12 python3.11 python3.10 python3; do
-    if command -v $cmd &> /dev/null; then
+# Build list of Python commands to try (newest first)
+PYTHON_CANDIDATES="python3.13 python3.12 python3.11 python3.10 python3.9 python3.8 python3 python"
+
+# Also check common install locations on macOS/Linux
+for brew_python in /opt/homebrew/bin/python3* /usr/local/bin/python3* /usr/bin/python3*; do
+    if [ -x "$brew_python" ] 2>/dev/null; then
+        PYTHON_CANDIDATES="$brew_python $PYTHON_CANDIDATES"
+    fi
+done
+
+# Try each candidate
+for cmd in $PYTHON_CANDIDATES; do
+    if command -v $cmd &> /dev/null || [ -x "$cmd" ]; then
         version=$($cmd -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null)
         if [ -n "$version" ]; then
+            # Check if version meets minimum requirement
             if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$version" | sort -V | head -n1)" = "$REQUIRED_VERSION" ]; then
-                PYTHON_CMD=$cmd
-                PYTHON_VERSION=$version
-                break
+                # Prefer newer versions - keep checking but remember this one
+                if [ -z "$PYTHON_CMD" ]; then
+                    PYTHON_CMD=$cmd
+                    PYTHON_VERSION=$version
+                elif [ "$(printf '%s\n' "$PYTHON_VERSION" "$version" | sort -V | tail -n1)" = "$version" ]; then
+                    # This version is newer
+                    PYTHON_CMD=$cmd
+                    PYTHON_VERSION=$version
+                fi
             fi
         fi
     fi
@@ -46,13 +63,15 @@ if [ -z "$PYTHON_CMD" ]; then
     # Check what version they have
     if command -v python3 &> /dev/null; then
         CURRENT=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null)
-        echo "You have Python $CURRENT, but wtf requires Python $REQUIRED_VERSION+"
-        echo ""
+        if [ -n "$CURRENT" ]; then
+            echo "You have Python $CURRENT, but wtf requires Python $REQUIRED_VERSION+"
+            echo ""
+        fi
     fi
     echo "Please install Python $REQUIRED_VERSION or higher:"
-    echo "  macOS:   brew install python@3.12"
-    echo "  Ubuntu:  sudo apt install python3.12 python3.12-venv"
-    echo "  Fedora:  sudo dnf install python3.12"
+    echo "  macOS:   brew install python3"
+    echo "  Ubuntu:  sudo apt install python3 python3-pip"
+    echo "  Fedora:  sudo dnf install python3 python3-pip"
     exit 1
 fi
 

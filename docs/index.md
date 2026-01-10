@@ -185,7 +185,7 @@ It's not complicated. Which is the point.
 
 ## Requirements
 
-- Python 3.10 or higher
+- Python 3.8 or higher
 - An API key from Anthropic, OpenAI, or Google
 - A terminal (we assume you have this already)
 - Problems (we assume you have these too)
