@@ -3,6 +3,8 @@
 # wtf installation script
 # Usage: curl -sSL https://raw.githubusercontent.com/davefowler/wtf-terminal-ai/main/install.sh | bash
 
+echo "DEBUG: Script starting..."
+
 REPO="davefowler/wtf-terminal-ai"
 
 # Colors for output (defined early so trap can use them)
@@ -12,9 +14,7 @@ YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
-# Exit on error, but with proper error messages
-set -e
-trap 'echo ""; echo -e "${RED}✗ Installation failed at line $LINENO${NC}"; echo ""; echo "Please report this issue at: https://github.com/$REPO/issues"' ERR
+echo "DEBUG: Variables set..."
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
@@ -24,7 +24,17 @@ echo "║                                                              ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-echo "Checking Python installation..."
+echo "DEBUG: After banner..."
+
+# Debug: Show we got past the banner
+echo "[1/6] Checking system..."
+echo "  Shell: $0, BASH_VERSION: ${BASH_VERSION:-not bash}"
+
+# Exit on error, but with proper error messages
+set -e
+trap 'echo ""; echo "ERROR: Installation failed at line $LINENO"; echo "Please report this at: https://github.com/$REPO/issues"' ERR
+
+echo "[2/6] Finding Python..."
 
 # Find a suitable Python version (3.9+, prefer newest)
 REQUIRED_VERSION="3.9"
