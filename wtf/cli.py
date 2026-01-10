@@ -292,36 +292,34 @@ def run_setup_wizard() -> Dict[str, Any]:
     console.print("[bold]Step 2:[/bold] Choose a model")
     console.print()
 
-    # Popular models by provider
+    # Popular models by provider (using model ID patterns that match llm library output)
+    # llm uses formats like "anthropic/claude-3-5-sonnet-latest" or "gpt-4o"
     models_by_provider = {
         "anthropic": [
-            ("claude-sonnet-4", "Claude Sonnet 4 (recommended)"),
-            ("claude-3-7-sonnet", "Claude 3.7 Sonnet"),
-            ("claude-3-5-sonnet", "Claude 3.5 Sonnet"),
-            ("claude-opus-4", "Claude Opus 4"),
+            ("claude-3-7-sonnet", "Claude 3.7 Sonnet (recommended, latest)"),
+            ("claude-3-5-sonnet-latest", "Claude 3.5 Sonnet"),
+            ("claude-3-5-sonnet", "Claude 3.5 Sonnet (dated)"),
             ("claude-3-opus", "Claude 3 Opus"),
             ("claude-3-5-haiku", "Claude 3.5 Haiku (fast & cheap)"),
         ],
         "openai": [
             ("gpt-4o", "GPT-4o (recommended)"),
+            ("chatgpt-4o", "ChatGPT-4o"),
             ("gpt-4o-mini", "GPT-4o Mini (fast & cheap)"),
+            ("gpt-4", "GPT-4"),
+            ("gpt-3.5-turbo", "GPT-3.5 Turbo (fast & cheap)"),
             ("o3", "o3 (reasoning)"),
             ("o1", "o1 (reasoning)"),
-            ("o1-mini", "o1 Mini (reasoning, cheaper)"),
-            ("gpt-5", "GPT-5"),
-            ("gpt-4.5", "GPT-4.5"),
         ],
         "google": [
-            ("gemini-2.0", "Gemini 2.0 (recommended)"),
-            ("gemini-1.5-pro", "Gemini 1.5 Pro"),
+            ("gemini-1.5-pro", "Gemini 1.5 Pro (recommended)"),
             ("gemini-1.5-flash", "Gemini 1.5 Flash (fast)"),
+            ("gemini-2", "Gemini 2.0"),
         ],
         "local": [
-            ("llama3.2", "Llama 3.2 (recommended)"),
-            ("llama3.1", "Llama 3.1"),
-            ("llama3", "Llama 3"),
+            ("llama3", "Llama 3 (recommended)"),
             ("deepseek-r1", "DeepSeek R1 (reasoning)"),
-            ("qwen2.5", "Qwen 2.5"),
+            ("qwen", "Qwen"),
             ("mistral", "Mistral"),
             ("codellama", "CodeLlama (coding)"),
             ("phi", "Phi"),
@@ -332,12 +330,21 @@ def run_setup_wizard() -> Dict[str, Any]:
     def model_matches(model_id: str, available_ids: List[str]) -> Optional[str]:
         """Check if model_id matches any available model. Returns the actual model ID if found."""
         for available in available_ids:
+            # Exact match
             if model_id == available:
                 return available
+            # Check if available starts with model_id
             if available.startswith(model_id):
                 return available
+            # Check if model_id starts with available
             if model_id.startswith(available):
                 return available
+            # Handle provider prefixes like "anthropic/claude-3-5-sonnet-20241022"
+            # Strip the prefix and check if model_id matches the rest
+            if "/" in available:
+                model_name = available.split("/", 1)[1]  # Get part after "/"
+                if model_name.startswith(model_id) or model_id in model_name:
+                    return available
         return None
 
     # Get models for selected provider
@@ -399,19 +406,51 @@ def run_setup_wizard() -> Dict[str, Any]:
             # Specific model chosen (offset by 1 for the "Recommended" option)
             selected_model = model_choices[choice_idx - 1][0]
     else:
-        # No popular models found - show all available
-        console.print("[dim]No popular models found for this provider. Showing all:[/dim]")
+        # No popular models found - show available models for this provider
+        console.print(f"[dim]Showing available models for {provider_choices[int(provider_choice) - 1][1]}:[/dim]")
         console.print()
         
+        # Map selected_provider to provider class name patterns
+        provider_patterns = {
+            "anthropic": ["claude", "anthropic"],
+            "openai": ["gpt", "chatgpt", "o1", "o3", "openai"],
+            "google": ["gemini", "google"],
+            "local": ["ollama", "llama", "mistral", "phi", "qwen", "deepseek"],
+        }
+        patterns = provider_patterns.get(selected_provider, [])
+        
+        # Filter models that match this provider
         all_models = []
-        for provider, models in sorted(grouped.items()):
-            console.print(f"[bold]{provider}:[/bold]")
-            for model_id in sorted(models)[:5]:
-                all_models.append(model_id)
-                console.print(f"  [cyan]{len(all_models)}.[/cyan] {model_id}")
-            if len(models) > 5:
-                console.print(f"  [dim]...and {len(models) - 5} more[/dim]")
-            console.print()
+        for provider_name, models in sorted(grouped.items()):
+            provider_lower = provider_name.lower()
+            # Check if this provider group matches our selected provider
+            matches_provider = any(p in provider_lower for p in patterns)
+            if not matches_provider:
+                # Also check if any model ID contains our patterns
+                matches_provider = any(
+                    any(p in m.lower() for p in patterns) 
+                    for m in models
+                )
+            
+            if matches_provider:
+                console.print(f"[bold]{provider_name}:[/bold]")
+                for model_id in sorted(models)[:10]:  # Show more models
+                    all_models.append(model_id)
+                    console.print(f"  [cyan]{len(all_models)}.[/cyan] {model_id}")
+                if len(models) > 10:
+                    console.print(f"  [dim]...and {len(models) - 10} more[/dim]")
+                console.print()
+
+        if not all_models:
+            console.print("[yellow]No models found for this provider.[/yellow]")
+            console.print("Make sure you have the correct llm plugin installed:")
+            if selected_provider == "anthropic":
+                console.print("  [cyan]llm install llm-anthropic[/cyan]")
+            elif selected_provider == "google":
+                console.print("  [cyan]llm install llm-gemini[/cyan]")
+            elif selected_provider == "local":
+                console.print("  [cyan]llm install llm-ollama[/cyan]")
+            sys.exit(1)
 
         console.print()
         choice = Prompt.ask(
