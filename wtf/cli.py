@@ -32,7 +32,7 @@ from wtf.conversation.memory import (
     clear_memories,
     search_memories,
 )
-from wtf.conversation.history import append_to_history
+from wtf.conversation.history import append_to_history, get_recent_conversations
 from wtf.setup.hooks import (
     setup_error_hook,
     setup_not_found_hook,
@@ -1096,7 +1096,8 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
 
     # Build prompts
     system_prompt = build_system_prompt()
-    context_prompt = build_context_prompt(commands, git_status, env_context, memories, shell_type)
+    recent_convos = get_recent_conversations(count=3)  # Include last 3 conversations
+    context_prompt = build_context_prompt(commands, git_status, env_context, memories, shell_type, recent_convos)
     full_prompt = f"{context_prompt}\n\nUSER QUERY:\n{query}"
 
     try:

@@ -65,21 +65,17 @@ NEVER say things like:
 
 If you say you read/checked/looked at something, you MUST have ACTUALLY USED A TOOL to do so.
 
-Available tools YOU MUST USE:
-- read_file: Read file contents - USE THIS EVERY TIME you need to know what's in a file
-- run_command: Execute commands (git, ls, etc.) - USE THIS for terminal operations
-- grep: Search in files - USE THIS to find content
-- glob_files: Find files - USE THIS to list files
-- duckduckgo_search: Search the web - USE THIS for weather, news, current events, history, etc.
-- lookup_history: Past conversations
-- get_config/update_config: Configuration
+You have many tools available - check the tool definitions provided by the system. Key tools include:
+- File tools: read_file, write_file, grep, glob_files
+- Command tools: run_command (for git, shell commands, etc.)
+- Web search: duckduckgo_search (FREE, no API key - use for weather, news, current events, docs)
+- Memory: lookup_history, save_user_memory, get_user_memories
 
 MANDATORY TOOL USAGE RULES:
-1. User says "read X" or "what is in X" → YOU MUST USE read_file tool RIGHT NOW
-2. User says "what files..." → YOU MUST USE glob_files or run_command with ls
-3. User says "what changed..." → YOU MUST USE run_command with git diff
-4. User asks "what is this about" → YOU MUST USE read_file to read README/docs
-5. User asks about weather, news, history, current events → USE duckduckgo_search (NOT curl)
+1. User asks about file contents → USE read_file
+2. User asks about weather, news, history, current events → USE duckduckgo_search (NOT curl)
+3. User asks about git status/changes → USE run_command with git
+4. User asks "what is this project" → USE read_file on README
 
 If you respond WITHOUT using tools when you should have, you are LYING to the user.
 
@@ -213,7 +209,8 @@ def build_context_prompt(
     git_status: Optional[Dict[str, Any]],
     env: Dict[str, Any],
     memories: Optional[Dict[str, Any]] = None,
-    shell_type: Optional[str] = None
+    shell_type: Optional[str] = None,
+    recent_conversations: Optional[List[Dict[str, Any]]] = None
 ) -> str:
     """
     Build context section of the prompt.
@@ -224,11 +221,25 @@ def build_context_prompt(
         env: Environment information
         memories: User memories/preferences
         shell_type: Shell type (zsh, bash, fish, etc.)
+        recent_conversations: Recent wtf conversation history
 
     Returns:
         Context string for the prompt
     """
     context_parts = []
+
+    # Add recent conversation history (so AI remembers what user said)
+    if recent_conversations:
+        conv_parts = []
+        for conv in recent_conversations[:3]:  # Last 3 conversations
+            query = conv.get("query", "")
+            response = conv.get("response", "")
+            if query and response:
+                # Truncate long responses
+                response_preview = response[:200] + "..." if len(response) > 200 else response
+                conv_parts.append(f"  User: {query}\n  Assistant: {response_preview}")
+        if conv_parts:
+            context_parts.append("RECENT CONVERSATION HISTORY:\n" + "\n\n".join(conv_parts))
 
     # Add shell type
     if shell_type:
