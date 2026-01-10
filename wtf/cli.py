@@ -452,6 +452,62 @@ def run_setup_wizard() -> Dict[str, Any]:
         if matches_provider:
             provider_models.extend(model_ids)
 
+    # Deduplicate and filter models - remove dated versions that are likely deprecated
+    # e.g., remove "claude-3-5-sonnet-20240620" in favor of "claude-sonnet-4-5"
+    import re
+    
+    def get_base_model_name(model_id: str) -> str:
+        """Extract base model name without dates or 'latest' suffix."""
+        # Remove date suffixes like -20240229, -20241022
+        base = re.sub(r'-\d{8}$', '', model_id)
+        # Remove 'latest' suffix
+        base = re.sub(r'-latest$', '', base)
+        return base
+    
+    def has_date_suffix(model_id: str) -> bool:
+        """Check if model ID has a date suffix (likely deprecated)."""
+        return bool(re.search(r'-\d{8}$', model_id))
+    
+    # First pass: filter out dated models if a non-dated equivalent exists
+    # This helps remove deprecated models like claude-3-5-sonnet-20240620
+    model_groups = {}
+    for model_id in provider_models:
+        base = get_base_model_name(model_id)
+        if base not in model_groups:
+            model_groups[base] = []
+        model_groups[base].append(model_id)
+    
+    # For each group, prefer: non-dated > latest > most recent date
+    deduplicated_models = []
+    for base, variants in model_groups.items():
+        if len(variants) == 1:
+            # Only one variant - keep it unless it's a dated version and looks old
+            model = variants[0]
+            # Skip very old dated models (pre-2025) - they're likely deprecated
+            date_match = re.search(r'-(\d{8})$', model)
+            if date_match and int(date_match.group(1)) < 20250101:
+                continue  # Skip old dated models
+            deduplicated_models.append(model)
+        else:
+            # Multiple variants - pick the best one
+            def variant_priority(v):
+                # Prefer: non-dated clean names > latest > newer dates
+                if 'latest' in v:
+                    return (1, 0, v)  # Latest is good but not as clean
+                elif re.search(r'-\d{8}$', v):
+                    # Has date - lower priority, but newer is better
+                    date_match = re.search(r'-(\d{8})$', v)
+                    date = date_match.group(1) if date_match else "00000000"
+                    return (2, -int(date), v)
+                else:
+                    # No date, no latest - these are the cleanest names
+                    return (0, 0, v)
+            
+            variants.sort(key=variant_priority)
+            deduplicated_models.append(variants[0])
+    
+    provider_models = deduplicated_models
+
     # Sort models by priority (flagship first) then alphabetically
     provider_models.sort(key=lambda m: (-get_model_priority(m, selected_provider), m))
 
