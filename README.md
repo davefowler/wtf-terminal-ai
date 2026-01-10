@@ -86,7 +86,7 @@ wtf what is rust programming language
 
 ## Requirements
 
-- Python 3.8 or higher
+- Python 3.9 or higher
 - An API key from Anthropic, OpenAI, or Google — **OR run locally with Ollama (free, no API key needed!)**
 
 ## Optional: Web Search

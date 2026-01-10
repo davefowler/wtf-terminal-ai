@@ -22,7 +22,7 @@ echo "╚═══════════════════════�
 echo ""
 
 # Find a suitable Python version (3.8+, prefer newest)
-REQUIRED_VERSION="3.8"
+REQUIRED_VERSION="3.9"
 PYTHON_CMD=""
 PYTHON_VERSION=""
 
