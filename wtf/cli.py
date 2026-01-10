@@ -891,15 +891,16 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
 
     try:
         # Query AI with tools
+        # Note: We don't use a spinner here because it conflicts with permission prompts
         console.print()
-        with console.status("🤖 Thinking...", spinner="dots"):
-            result = query_ai_with_tools(
-                prompt=full_prompt,
-                config=config,
-                system_prompt=system_prompt,
-                max_iterations=20,
-                env_context=tool_env_context
-            )
+        console.print("[dim]🤖 Thinking...[/dim]")
+        result = query_ai_with_tools(
+            prompt=full_prompt,
+            config=config,
+            system_prompt=system_prompt,
+            max_iterations=20,
+            env_context=tool_env_context
+        )
 
         # Process tool calls and print outputs
         console.print()
