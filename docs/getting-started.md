@@ -145,7 +145,7 @@ Each provider offers multiple models:
 
 ```bash
 wtf --version
-# wtf 0.1.0
+# wtf 0.x.0
 
 wtf "hello"
 # [AI responds with personality]
