@@ -130,6 +130,7 @@ Look, we're not completely flag-free. Sometimes you need precision:
 
   --help, -h         This message (meta achievement unlocked)
   --version, -v      Print version number
+  --upgrade          Upgrade wtf and all AI model plugins
   --config           Open config file in your editor
   --model MODEL      Override AI model (must be specified BEFORE your query)
   --verbose          Show diagnostic info
@@ -350,21 +351,28 @@ def run_setup_wizard() -> Dict[str, Any]:
 
     # Show model choices
     if model_choices:
-        for i, (model_id, description) in enumerate(model_choices, 1):
-            console.print(f"  [cyan]{i}.[/cyan] {description}")
+        # First option is always "Recommended" which auto-selects the best
+        console.print(f"  [cyan]1.[/cyan] [green]Recommended[/green] [dim](auto-select best)[/dim]")
+        for i, (model_id, description) in enumerate(model_choices, 2):
+            # Remove "(recommended)" from description since we have a dedicated option
+            desc = description.replace(" (recommended)", "")
+            console.print(f"  [cyan]{i}.[/cyan] {desc}")
         
         # Add option to see all models from this provider
-        console.print(f"  [cyan]{len(model_choices) + 1}.[/cyan] See all available models")
+        console.print(f"  [cyan]{len(model_choices) + 2}.[/cyan] See all available models")
         console.print()
 
         choice = Prompt.ask(
             "Select model",
-            choices=[str(i) for i in range(1, len(model_choices) + 2)],
+            choices=[str(i) for i in range(1, len(model_choices) + 3)],
             default="1"
         )
         choice_idx = int(choice) - 1
 
-        if choice_idx == len(model_choices):
+        if choice_idx == 0:
+            # Recommended - pick the first available model (best for this provider)
+            selected_model = model_choices[0][0]
+        elif choice_idx == len(model_choices) + 1:
             # Show all models (from any provider)
             console.print()
             console.print("[bold]All Available Models:[/bold]")
@@ -388,7 +396,8 @@ def run_setup_wizard() -> Dict[str, Any]:
             )
             selected_model = all_models[int(choice) - 1]
         else:
-            selected_model = model_choices[choice_idx][0]
+            # Specific model chosen (offset by 1 for the "Recommended" option)
+            selected_model = model_choices[choice_idx - 1][0]
     else:
         # No popular models found - show all available
         console.print("[dim]No popular models found for this provider. Showing all:[/dim]")
@@ -846,6 +855,7 @@ def _parse_arguments():
     parser.add_argument('--setup-error-hook', action='store_true', help='Setup error hook')
     parser.add_argument('--setup-not-found-hook', action='store_true', help='Setup not-found hook')
     parser.add_argument('--remove-hooks', action='store_true', help='Remove shell hooks')
+    parser.add_argument('--upgrade', action='store_true', help='Upgrade wtf and all AI model plugins')
 
     # Collect the rest as the user query
     parser.add_argument('query', nargs='*', help='Your query for wtf')
@@ -932,6 +942,52 @@ def _handle_hooks_flags(args) -> None:
         sys.exit(0)
 
 
+def _handle_upgrade_flag() -> None:
+    """Handle --upgrade flag to upgrade wtf and all AI model plugins."""
+    import subprocess
+    
+    console.print()
+    console.print("[bold]Upgrading wtf and AI model plugins...[/bold]")
+    console.print()
+    
+    # Packages to upgrade: wtf-ai and all llm plugins
+    packages = [
+        "wtf-ai",
+        "llm",
+        "llm-anthropic",
+        "llm-gemini", 
+        "llm-ollama",
+    ]
+    
+    for package in packages:
+        console.print(f"[dim]Upgrading {package}...[/dim]")
+        try:
+            result = subprocess.run(
+                [sys.executable, "-m", "pip", "install", "--upgrade", package],
+                capture_output=True,
+                text=True
+            )
+            if result.returncode == 0:
+                # Extract version from output if possible
+                console.print(f"  [green]✓[/green] {package} upgraded")
+            else:
+                console.print(f"  [yellow]⚠[/yellow] {package} - {result.stderr.strip() or 'failed'}")
+        except Exception as e:
+            console.print(f"  [red]✗[/red] {package} - {e}")
+    
+    console.print()
+    console.print("[green]✓[/green] Upgrade complete!")
+    console.print()
+    
+    # Show new version
+    from wtf import __version__
+    # Reload to get new version (won't work in same process, but show current)
+    console.print(f"[dim]Current version: {__version__}[/dim]")
+    console.print("[dim]Restart your terminal to use the new version.[/dim]")
+    console.print()
+    sys.exit(0)
+
+
 def _load_or_setup_config():
     """Load configuration, running setup wizard if needed."""
     # Check if setup is needed (first run)
@@ -1012,6 +1068,9 @@ def main() -> None:
         sys.exit(0)
 
     _handle_hooks_flags(args)
+
+    if args.upgrade:
+        _handle_upgrade_flag()
 
     # Load or setup config
     config = _load_or_setup_config()
