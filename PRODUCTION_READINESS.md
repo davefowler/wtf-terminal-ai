@@ -78,7 +78,7 @@ python3.11 -m pytest tests/ -k "not integration" --tb=no -q
 - ✅ **Version** - 0.1.0 set in both `pyproject.toml` and `wtf/__init__.py`
 - ✅ **Dependencies** - All dependencies listed
 - ✅ **Entry point** - `wtf = "wtf.cli:main"` configured
-- ✅ **Python version** - Requires Python 3.10+
+- ✅ **Python version** - Requires Python 3.8+
 
 ### Package Info
 ```toml
@@ -220,7 +220,7 @@ main()
 ## Compatibility ✅
 
 ### Python Versions
-- ✅ Python 3.10
+- ✅ Python 3.8+
 - ✅ Python 3.11
 - ✅ Python 3.12
 - ✅ Python 3.13 (tested with 3.11)

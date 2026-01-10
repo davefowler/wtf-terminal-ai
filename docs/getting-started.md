@@ -16,7 +16,7 @@ curl -sSL https://raw.githubusercontent.com/davefowler/wtf-terminal-ai/main/inst
 
 This will:
 
-- Check for Python 3.10+
+- Check for Python 3.8+
 - Install wtf-ai via pip
 - Detect if you already have a `wtf` alias/command
 - Offer alternative names (wtfai, wai) if collision detected
