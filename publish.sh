@@ -4,6 +4,12 @@ set -e
 
 cd "$(dirname "$0")"
 
+# Use venv if available, otherwise python3
+if [ -d "venv" ]; then
+    source venv/bin/activate
+fi
+PYTHON="${PYTHON:-python3}"
+
 # Get current version
 CURRENT=$(grep '^version' pyproject.toml | cut -d'"' -f2)
 
@@ -26,10 +32,10 @@ echo "Publishing wtf-ai v$VERSION to PyPI..."
 
 # Clean and build
 rm -rf dist/ build/ *.egg-info
-python -m build
+$PYTHON -m build
 
 # Upload
-python -m twine upload dist/*
+$PYTHON -m twine upload dist/*
 
 echo ""
 echo "✅ Published wtf-ai v$VERSION"
