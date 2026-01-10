@@ -132,10 +132,14 @@ $ wtf --model claude-sonnet-4
 
 **Available models:**
 
-- **Anthropic:** `claude-sonnet-4`, `claude-3-5-sonnet`, `claude-opus-4`, `claude-3-5-haiku`
+Models are fetched dynamically from the `llm` library. Common options include:
+
+- **Anthropic:** `claude-opus-4` (flagship), `claude-sonnet-4`, `claude-3-5-haiku-latest`
 - **OpenAI:** `gpt-4o`, `gpt-4o-mini`, `o1`, `o3`, `gpt-5`
-- **Google:** `gemini-2.0`, `gemini-1.5-pro`, `gemini-1.5-flash`
-- **Local (Ollama):** `llama3.2`, `mistral`, `codellama`, `deepseek-r1`, `qwen2.5`
+- **Google:** `gemini-2.5-pro`, `gemini-2.5-flash`
+- **Local (Ollama):** `llama3`, `mistral`, `codellama`, `deepseek-r1`
+
+Run `wtf --setup` to see all available models from your installed llm plugins.
 
 ### `--provider PROVIDER`
 
@@ -149,7 +153,7 @@ $ wtf --provider openai --model gpt-4 "your query"
 $ wtf --provider google --model gemini-pro "your query"
 
 # Switch back to Anthropic for one query
-$ wtf --provider anthropic --model claude-3-5-sonnet "your query"
+$ wtf --provider anthropic --model claude-3-5-sonnet-latest "your query"
 ```
 
 Valid providers:

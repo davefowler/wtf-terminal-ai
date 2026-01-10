@@ -48,7 +48,7 @@ def get_default_config() -> Dict[str, Any]:
             "provider": "anthropic",
             "key_source": "env",
             "key": None,
-            "model": "claude-3.5-sonnet"
+            "model": "claude-opus-4"
         },
         "behavior": {
             "auto_execute_allowlist": True,

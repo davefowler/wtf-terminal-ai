@@ -320,176 +320,223 @@ def run_setup_wizard() -> Dict[str, Any]:
     console.print("[bold]Step 2:[/bold] Choose a model")
     console.print()
 
-    # Popular models by provider
-    # These are fallback suggestions - we also try to fetch available models from llm.get_models()
-    # Use official model aliases where possible (e.g., "claude-sonnet-4" instead of dated versions)
-    # Note: gpt-4o-search-preview models have built-in web search - no extra API keys needed!
-    # Last updated: January 2026
-    models_by_provider = {
-        "anthropic": [
-            ("claude-sonnet-4", "Claude Sonnet 4 (recommended, latest)"),
-            ("claude-3-5-sonnet-latest", "Claude 3.5 Sonnet"),
-            ("claude-3-5-haiku-latest", "Claude 3.5 Haiku (fast & cheap)"),
-            ("claude-3-opus-latest", "Claude 3 Opus"),
-        ],
-        "openai": [
-            ("gpt-4o", "GPT-4o (recommended)"),
-            ("gpt-4o-search-preview", "GPT-4o Search (built-in web search!)"),
-            ("chatgpt-4o-latest", "ChatGPT-4o"),
-            ("gpt-4o-mini", "GPT-4o Mini (fast & cheap)"),
-            ("gpt-4o-mini-search-preview", "GPT-4o Mini Search (built-in web search)"),
-            ("gpt-4.1", "GPT-4.1"),
-            ("o3", "o3 (reasoning)"),
-            ("o1", "o1 (reasoning)"),
-        ],
-        "google": [
-            ("gemini-2.5-pro", "Gemini 2.5 Pro (recommended)"),
-            ("gemini-2.5-flash", "Gemini 2.5 Flash (fast)"),
-            ("gemini-2.0-flash", "Gemini 2.0 Flash"),
-        ],
-        "local": [
-            ("llama3", "Llama 3 (recommended)"),
-            ("deepseek-r1", "DeepSeek R1 (reasoning)"),
-            ("qwen", "Qwen"),
-            ("mistral", "Mistral"),
-            ("codellama", "CodeLlama (coding)"),
-            ("phi", "Phi"),
-        ],
+    # Model metadata by provider
+    # Descriptions and priority are for display only - actual models come from llm.get_models()
+    # Priority: higher = shown first (flagship models should have highest priority)
+    model_metadata = {
+        "anthropic": {
+            # Opus is flagship (most capable), Sonnet is balanced, Haiku is fast/cheap
+            "descriptions": {
+                "opus": "Most capable, best for complex tasks",
+                "sonnet": "Balanced performance and speed",
+                "haiku": "Fast & cheap",
+            },
+            "priority": {
+                "opus": 100,
+                "sonnet": 80, 
+                "haiku": 60,
+            },
+        },
+        "openai": {
+            "descriptions": {
+                "gpt-5": "Latest generation",
+                "gpt-4o": "Great all-around",
+                "gpt-4o-search": "Built-in web search!",
+                "gpt-4.1": "Enhanced GPT-4",
+                "o3": "Advanced reasoning",
+                "o1": "Reasoning model",
+                "mini": "Fast & cheap",
+            },
+            "priority": {
+                "gpt-5": 100,
+                "o3": 95,
+                "gpt-4o": 90,
+                "o1": 85,
+                "gpt-4.1": 85,
+                "gpt-4": 80,
+                "mini": 50,
+            },
+        },
+        "google": {
+            "descriptions": {
+                "2.5-pro": "Most capable",
+                "2.5-flash": "Fast & efficient",
+                "2.0": "Previous generation",
+                "pro": "Most capable",
+                "flash": "Fast & efficient",
+            },
+            "priority": {
+                "2.5": 90,
+                "2.0": 80,
+                "pro": 85,
+                "flash": 70,
+            },
+        },
+        "local": {
+            "descriptions": {
+                "llama": "Meta's open model",
+                "deepseek": "Reasoning model", 
+                "mistral": "Fast open model",
+                "codellama": "Optimized for code",
+                "qwen": "Alibaba's model",
+                "phi": "Microsoft's small model",
+            },
+            "priority": {
+                "llama3": 90,
+                "deepseek": 85,
+                "mistral": 80,
+                "codellama": 75,
+                "qwen": 70,
+                "phi": 60,
+            },
+        },
     }
 
-    # Helper to check if a model matches any available model
-    def model_matches(model_id: str, available_ids: List[str]) -> Optional[str]:
-        """Check if model_id matches any available model. Returns the actual model ID if found."""
-        for available in available_ids:
-            # Exact match
-            if model_id == available:
-                return available
-            # Check if available starts with model_id
-            if available.startswith(model_id):
-                return available
-            # Check if model_id starts with available
-            if model_id.startswith(available):
-                return available
-            # Handle provider prefixes like "anthropic/claude-3-5-sonnet-20241022"
-            # Strip the prefix and check if model_id matches the rest
-            if "/" in available:
-                model_name = available.split("/", 1)[1]  # Get part after "/"
-                if model_name.startswith(model_id) or model_id in model_name:
-                    return available
-        return None
+    # Version number priority boost (higher versions = better)
+    version_priority = {
+        "4.5": 95, "4.1": 92, "4": 90,
+        "3.7": 85, "3.5": 80, "3": 75,
+        "2.5": 85, "2.0": 80, "2": 75,
+    }
 
-    # Get models for selected provider
-    popular_models = models_by_provider.get(selected_provider, [])
+    def get_model_priority(model_id: str, provider: str) -> int:
+        """Get sort priority for a model (higher = better/first)."""
+        model_lower = model_id.lower()
+        priority = 0
+        
+        # Check provider-specific priority
+        if provider in model_metadata:
+            for key, val in model_metadata[provider].get("priority", {}).items():
+                if key in model_lower:
+                    priority = max(priority, val)
+        
+        # Check version number boost
+        for ver, val in version_priority.items():
+            if ver in model_lower:
+                priority = max(priority, val)
+        
+        return priority
+
+    def get_model_description(model_id: str, provider: str) -> str:
+        """Get description for a model if known."""
+        model_lower = model_id.lower()
+        
+        # Check provider-specific descriptions
+        if provider in model_metadata:
+            for key, desc in model_metadata[provider].get("descriptions", {}).items():
+                if key in model_lower:
+                    return desc
+        return ""
+
+    # Map selected_provider to provider class name patterns for filtering
+    provider_patterns = {
+        "anthropic": ["claude", "anthropic"],
+        "openai": ["gpt", "chatgpt", "o1", "o3", "openai"],
+        "google": ["gemini", "google"],
+        "local": ["ollama", "llama", "mistral", "phi", "qwen", "deepseek", "codellama"],
+    }
+    patterns = provider_patterns.get(selected_provider, [])
+
+    # Get all models for this provider from llm.get_models()
+    provider_models = []
+    for provider_name, model_ids in grouped.items():
+        provider_lower = provider_name.lower()
+        # Check if this group matches our selected provider
+        matches_provider = any(p in provider_lower for p in patterns)
+        if not matches_provider:
+            # Also check if any model ID contains our patterns
+            matches_provider = any(
+                any(p in m.lower() for p in patterns) 
+                for m in model_ids
+            )
+        if matches_provider:
+            provider_models.extend(model_ids)
+
+    # Sort models by priority (flagship first) then alphabetically
+    provider_models.sort(key=lambda m: (-get_model_priority(m, selected_provider), m))
+
+    # Build model choices from the actual available models
     model_choices = []
-    
-    for model_id, description in popular_models:
-        matched = model_matches(model_id, all_available_ids)
-        if matched:
-            model_choices.append((matched, description))
+    for model_id in provider_models:
+        desc = get_model_description(model_id, selected_provider)
+        model_choices.append((model_id, desc))
 
     # Show model choices
     if model_choices:
-        # First option is always "Recommended" which auto-selects the best
-        console.print(f"  [cyan]1.[/cyan] [green]Recommended[/green] [dim](auto-select best)[/dim]")
-        for i, (model_id, description) in enumerate(model_choices, 2):
-            # Remove "(recommended)" from description since we have a dedicated option
-            desc = description.replace(" (recommended)", "")
-            console.print(f"  [cyan]{i}.[/cyan] {desc}")
+        # Limit display to top 10 models (sorted by priority)
+        display_choices = model_choices[:10]
         
-        # Add option to see all models from this provider
-        console.print(f"  [cyan]{len(model_choices) + 2}.[/cyan] See all available models")
+        # First option is always "Recommended" which auto-selects the best (flagship)
+        best_model, best_desc = model_choices[0]
+        console.print(f"  [cyan]1.[/cyan] [green]Recommended[/green]: {best_model} [dim]({best_desc or 'flagship'})[/dim]")
+        
+        for i, (model_id, description) in enumerate(display_choices[1:], 2):
+            if description:
+                console.print(f"  [cyan]{i}.[/cyan] {model_id} [dim]({description})[/dim]")
+            else:
+                console.print(f"  [cyan]{i}.[/cyan] {model_id}")
+        
+        # Add option to see all models if there are more
+        extra_options = 1  # Start with "Enter custom model name"
+        if len(model_choices) > 10:
+            console.print(f"  [cyan]{len(display_choices) + 1}.[/cyan] See all {len(model_choices)} models")
+            extra_options += 1
+        console.print(f"  [cyan]{len(display_choices) + extra_options}.[/cyan] Enter custom model name")
         console.print()
 
+        max_choice = len(display_choices) + extra_options
         choice = Prompt.ask(
             "Select model",
-            choices=[str(i) for i in range(1, len(model_choices) + 3)],
+            choices=[str(i) for i in range(1, max_choice + 1)],
             default="1"
         )
         choice_idx = int(choice) - 1
 
         if choice_idx == 0:
-            # Recommended - pick the first available model (best for this provider)
+            # Recommended - pick the first available model (flagship for this provider)
             selected_model = model_choices[0][0]
-        elif choice_idx == len(model_choices) + 1:
-            # Show all models (from any provider)
+        elif choice_idx == len(display_choices) + extra_options - 1:
+            # Custom model name (always last option)
             console.print()
-            console.print("[bold]All Available Models:[/bold]")
+            console.print("[dim]Enter the exact model name (e.g., claude-opus-4, gpt-4o)[/dim]")
+            selected_model = Prompt.ask("Model name")
+        elif len(model_choices) > 10 and choice_idx == len(display_choices):
+            # Show all models for this provider
+            console.print()
+            console.print(f"[bold]All {len(model_choices)} models for this provider:[/bold]")
             console.print()
 
-            all_models = []
-            for provider, models in sorted(grouped.items()):
-                console.print(f"[bold]{provider}:[/bold]")
-                for model_id in sorted(models)[:5]:
-                    all_models.append(model_id)
-                    console.print(f"  [cyan]{len(all_models)}.[/cyan] {model_id}")
-                if len(models) > 5:
-                    console.print(f"  [dim]...and {len(models) - 5} more[/dim]")
-                console.print()
+            for i, (model_id, desc) in enumerate(model_choices, 1):
+                if desc:
+                    console.print(f"  [cyan]{i}.[/cyan] {model_id} [dim]({desc})[/dim]")
+                else:
+                    console.print(f"  [cyan]{i}.[/cyan] {model_id}")
 
             console.print()
             choice = Prompt.ask(
                 "Select model number",
-                choices=[str(i) for i in range(1, len(all_models) + 1)],
+                choices=[str(i) for i in range(1, len(model_choices) + 1)],
                 default="1"
             )
-            selected_model = all_models[int(choice) - 1]
+            selected_model = model_choices[int(choice) - 1][0]
         else:
             # Specific model chosen (offset by 1 for the "Recommended" option)
-            selected_model = model_choices[choice_idx - 1][0]
+            selected_model = display_choices[choice_idx][0]
     else:
-        # No popular models found - show available models for this provider
-        console.print(f"[dim]Showing available models for {provider_choices[int(provider_choice) - 1][1]}:[/dim]")
+        # No models found for this provider - likely missing plugin
+        console.print(f"[yellow]No models found for {provider_choices[int(provider_choice) - 1][1]}[/yellow]")
         console.print()
-        
-        # Map selected_provider to provider class name patterns
-        provider_patterns = {
-            "anthropic": ["claude", "anthropic"],
-            "openai": ["gpt", "chatgpt", "o1", "o3", "openai"],
-            "google": ["gemini", "google"],
-            "local": ["ollama", "llama", "mistral", "phi", "qwen", "deepseek"],
-        }
-        patterns = provider_patterns.get(selected_provider, [])
-        
-        # Filter models that match this provider
-        all_models = []
-        for provider_name, models in sorted(grouped.items()):
-            provider_lower = provider_name.lower()
-            # Check if this provider group matches our selected provider
-            matches_provider = any(p in provider_lower for p in patterns)
-            if not matches_provider:
-                # Also check if any model ID contains our patterns
-                matches_provider = any(
-                    any(p in m.lower() for p in patterns) 
-                    for m in models
-                )
-            
-            if matches_provider:
-                console.print(f"[bold]{provider_name}:[/bold]")
-                for model_id in sorted(models)[:10]:  # Show more models
-                    all_models.append(model_id)
-                    console.print(f"  [cyan]{len(all_models)}.[/cyan] {model_id}")
-                if len(models) > 10:
-                    console.print(f"  [dim]...and {len(models) - 10} more[/dim]")
-                console.print()
-
-        if not all_models:
-            console.print("[yellow]No models found for this provider.[/yellow]")
-            console.print("Make sure you have the correct llm plugin installed:")
-            if selected_provider == "anthropic":
-                console.print("  [cyan]llm install llm-anthropic[/cyan]")
-            elif selected_provider == "google":
-                console.print("  [cyan]llm install llm-gemini[/cyan]")
-            elif selected_provider == "local":
-                console.print("  [cyan]llm install llm-ollama[/cyan]")
-            sys.exit(1)
-
+        console.print("This usually means the llm plugin isn't installed.")
+        console.print("Install the required plugin:")
+        if selected_provider == "anthropic":
+            console.print("  [cyan]pip install llm-anthropic[/cyan]")
+        elif selected_provider == "google":
+            console.print("  [cyan]pip install llm-gemini[/cyan]")
+        elif selected_provider == "local":
+            console.print("  [cyan]pip install llm-ollama[/cyan]")
         console.print()
-        choice = Prompt.ask(
-            "Select model number",
-            choices=[str(i) for i in range(1, len(all_models) + 1)],
-            default="1"
-        )
-        selected_model = all_models[int(choice) - 1]
+        console.print("Or enter a custom model name:")
+        selected_model = Prompt.ask("Model name")
 
     console.print()
     console.print(f"[green]✓[/green] Selected: [cyan]{selected_model}[/cyan]")
