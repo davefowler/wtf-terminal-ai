@@ -21,36 +21,52 @@ echo "║                                                              ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Check if Python is installed
-if ! command -v python3 &> /dev/null; then
-    echo -e "${RED}✗ Python 3 is not installed${NC}"
-    echo ""
-    echo "Please install Python 3.10 or higher:"
-    echo "  macOS:   brew install python3"
-    echo "  Ubuntu:  sudo apt install python3 python3-pip"
-    echo "  Fedora:  sudo dnf install python3 python3-pip"
-    exit 1
-fi
-
-# Check Python version
-PYTHON_VERSION=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))')
+# Find a suitable Python version (3.10+)
 REQUIRED_VERSION="3.10"
+PYTHON_CMD=""
+PYTHON_VERSION=""
 
-if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$PYTHON_VERSION" | sort -V | head -n1)" != "$REQUIRED_VERSION" ]; then
-    echo -e "${RED}✗ Python $PYTHON_VERSION is installed, but wtf requires Python $REQUIRED_VERSION or higher${NC}"
+# Try different Python commands in order of preference
+for cmd in python3.13 python3.12 python3.11 python3.10 python3; do
+    if command -v $cmd &> /dev/null; then
+        version=$($cmd -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null)
+        if [ -n "$version" ]; then
+            if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$version" | sort -V | head -n1)" = "$REQUIRED_VERSION" ]; then
+                PYTHON_CMD=$cmd
+                PYTHON_VERSION=$version
+                break
+            fi
+        fi
+    fi
+done
+
+if [ -z "$PYTHON_CMD" ]; then
+    echo -e "${RED}✗ Python $REQUIRED_VERSION or higher not found${NC}"
+    echo ""
+    # Check what version they have
+    if command -v python3 &> /dev/null; then
+        CURRENT=$(python3 -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null)
+        echo "You have Python $CURRENT, but wtf requires Python $REQUIRED_VERSION+"
+        echo ""
+    fi
+    echo "Please install Python $REQUIRED_VERSION or higher:"
+    echo "  macOS:   brew install python@3.12"
+    echo "  Ubuntu:  sudo apt install python3.12 python3.12-venv"
+    echo "  Fedora:  sudo dnf install python3.12"
     exit 1
 fi
 
-echo -e "${GREEN}✓${NC} Python $PYTHON_VERSION detected"
+echo -e "${GREEN}✓${NC} Python $PYTHON_VERSION detected ($PYTHON_CMD)"
 
-# Check if pip is installed
-if ! command -v pip3 &> /dev/null; then
-    echo -e "${RED}✗ pip3 is not installed${NC}"
-    echo "Please install pip3 for your system"
+# Check if pip is available for our Python
+PIP_CMD="$PYTHON_CMD -m pip"
+if ! $PIP_CMD --version &> /dev/null; then
+    echo -e "${RED}✗ pip not available for $PYTHON_CMD${NC}"
+    echo "Please install pip for Python $PYTHON_VERSION"
     exit 1
 fi
 
-echo -e "${GREEN}✓${NC} pip3 detected"
+echo -e "${GREEN}✓${NC} pip detected"
 echo ""
 
 # Check for existing wtf command or alias
@@ -90,7 +106,7 @@ done
 # Check if wtf command exists in PATH (and it's not our installed version)
 if command -v wtf &> /dev/null && [ "$COLLISION_FOUND" = false ] && [ "$IS_OUR_ALIAS" = false ]; then
     # Check if it's our wtf by looking for wtf-ai in pip
-    if pip3 show wtf-ai &> /dev/null; then
+    if $PIP_CMD show wtf-ai &> /dev/null; then
         IS_OUR_ALIAS=true  # It's our package, not a collision
     else
         COLLISION_FOUND=true
@@ -157,11 +173,11 @@ echo ""
 INSTALL_SUCCESS=false
 
 # Try with --user flag first (--upgrade ensures we get latest version)
-if pip3 install --user --upgrade wtf-ai > /tmp/wtf-install.log 2>&1; then
+if $PIP_CMD install --user --upgrade wtf-ai > /tmp/wtf-install.log 2>&1; then
     INSTALL_SUCCESS=true
 else
     # Try without --user flag (needed for some systems/virtual envs)
-    if pip3 install --upgrade wtf-ai > /tmp/wtf-install.log 2>&1; then
+    if $PIP_CMD install --upgrade wtf-ai > /tmp/wtf-install.log 2>&1; then
         INSTALL_SUCCESS=true
     fi
 fi
@@ -175,13 +191,13 @@ else
     cat /tmp/wtf-install.log
     echo ""
     echo "You can try installing manually:"
-    echo "  pip3 install wtf-ai"
+    echo "  $PIP_CMD install wtf-ai"
     exit 1
 fi
 
 # If using alternative name, create symlink
 if [ "$COMMAND_NAME" != "wtf" ]; then
-    INSTALL_DIR=$(python3 -c "import site; print(site.USER_BASE + '/bin')")
+    INSTALL_DIR=$($PYTHON_CMD -c "import site; print(site.USER_BASE + '/bin')")
 
     if [ ! -d "$INSTALL_DIR" ]; then
         mkdir -p "$INSTALL_DIR"
@@ -196,7 +212,7 @@ if [ "$COMMAND_NAME" != "wtf" ]; then
 fi
 
 # Check if user bin is in PATH and add it if not
-USER_BIN=$(python3 -c "import site; print(site.USER_BASE + '/bin')" 2>/dev/null || echo "$HOME/.local/bin")
+USER_BIN=$($PYTHON_CMD -c "import site; print(site.USER_BASE + '/bin')" 2>/dev/null || echo "$HOME/.local/bin")
 
 if [[ ":$PATH:" != *":$USER_BIN:"* ]]; then
     echo ""
