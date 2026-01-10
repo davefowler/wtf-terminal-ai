@@ -21,41 +21,58 @@ echo "║                                                              ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
 
-# Find a suitable Python version (3.8+, prefer newest)
+# Find a suitable Python version (3.9+, prefer newest)
 REQUIRED_VERSION="3.9"
 PYTHON_CMD=""
 PYTHON_VERSION=""
 
-# Build list of Python commands to try (newest first)
-PYTHON_CANDIDATES="python3.13 python3.12 python3.11 python3.10 python3.9 python3.8 python3 python"
-
-# Also check common install locations on macOS/Linux
-for brew_python in /opt/homebrew/bin/python3* /usr/local/bin/python3* /usr/bin/python3*; do
-    if [ -x "$brew_python" ] 2>/dev/null; then
-        PYTHON_CANDIDATES="$brew_python $PYTHON_CANDIDATES"
+# Function to check if a Python command meets our requirements
+check_python() {
+    local cmd="$1"
+    local version
+    
+    # Skip if command doesn't exist
+    if ! command -v "$cmd" &> /dev/null && [ ! -x "$cmd" ]; then
+        return 1
     fi
-done
-
-# Try each candidate
-for cmd in $PYTHON_CANDIDATES; do
-    if command -v $cmd &> /dev/null || [ -x "$cmd" ]; then
-        version=$($cmd -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null)
-        if [ -n "$version" ]; then
-            # Check if version meets minimum requirement
-            if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$version" | sort -V | head -n1)" = "$REQUIRED_VERSION" ]; then
-                # Prefer newer versions - keep checking but remember this one
-                if [ -z "$PYTHON_CMD" ]; then
-                    PYTHON_CMD=$cmd
-                    PYTHON_VERSION=$version
-                elif [ "$(printf '%s\n' "$PYTHON_VERSION" "$version" | sort -V | tail -n1)" = "$version" ]; then
-                    # This version is newer
-                    PYTHON_CMD=$cmd
-                    PYTHON_VERSION=$version
-                fi
-            fi
+    
+    # Get version
+    version=$("$cmd" -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null) || return 1
+    
+    # Check if version meets minimum requirement
+    if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$version" | sort -V | head -n1)" = "$REQUIRED_VERSION" ]; then
+        # Check if this is newer than what we have
+        if [ -z "$PYTHON_CMD" ]; then
+            PYTHON_CMD="$cmd"
+            PYTHON_VERSION="$version"
+        elif [ "$(printf '%s\n' "$PYTHON_VERSION" "$version" | sort -V | tail -n1)" = "$version" ]; then
+            PYTHON_CMD="$cmd"
+            PYTHON_VERSION="$version"
         fi
     fi
+}
+
+# Try versioned commands first (newest to oldest)
+for cmd in python3.13 python3.12 python3.11 python3.10 python3.9; do
+    check_python "$cmd" || true
 done
+
+# Try generic python3
+check_python python3 || true
+
+# Check common Homebrew locations on macOS
+if [ -d "/opt/homebrew/bin" ]; then
+    for cmd in /opt/homebrew/bin/python3.13 /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.11 /opt/homebrew/bin/python3.10 /opt/homebrew/bin/python3.9 /opt/homebrew/bin/python3; do
+        [ -x "$cmd" ] && check_python "$cmd" || true
+    done
+fi
+
+# Check /usr/local/bin (Intel Mac Homebrew, manual installs)
+if [ -d "/usr/local/bin" ]; then
+    for cmd in /usr/local/bin/python3.13 /usr/local/bin/python3.12 /usr/local/bin/python3.11 /usr/local/bin/python3.10 /usr/local/bin/python3.9 /usr/local/bin/python3; do
+        [ -x "$cmd" ] && check_python "$cmd" || true
+    done
+fi
 
 if [ -z "$PYTHON_CMD" ]; then
     echo -e "${RED}✗ Python $REQUIRED_VERSION or higher not found${NC}"
