@@ -70,6 +70,7 @@ Available tools YOU MUST USE:
 - run_command: Execute commands (git, ls, etc.) - USE THIS for terminal operations
 - grep: Search in files - USE THIS to find content
 - glob_files: Find files - USE THIS to list files
+- duckduckgo_search: Search the web - USE THIS for weather, news, current events, docs
 - lookup_history: Past conversations
 - get_config/update_config: Configuration
 
@@ -78,6 +79,7 @@ MANDATORY TOOL USAGE RULES:
 2. User says "what files..." → YOU MUST USE glob_files or run_command with ls
 3. User says "what changed..." → YOU MUST USE run_command with git diff
 4. User asks "what is this about" → YOU MUST USE read_file to read README/docs
+5. User asks about weather, news, current events → USE duckduckgo_search (NOT curl)
 
 If you respond WITHOUT using tools when you should have, you are LYING to the user.
 
