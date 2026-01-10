@@ -1,11 +1,71 @@
 # Web Search
 
-By default, `wtf` has limited web search capabilities using DuckDuckGo's Instant Answer API - it only works for encyclopedic facts like "What is Python" or "Who is Ada Lovelace".
+`wtf` can search the web to answer questions about current events, documentation, weather, and more.
 
-For real web search (weather, news, documentation, current events), you'll need to add a search API key. It's a quick 5-minute setup that dramatically improves `wtf`'s ability to help.
+## Free Search Options
 
-!!! note "Search Requires an API Key"
-    Unlike other features, web search (except basic DuckDuckGo facts) requires an external API key. Don't worry - the recommended options have generous free tiers and don't require a credit card.
+### Option 1: DuckDuckGo (Easiest - FREE & Unlimited)
+
+Install the `duckduckgo-search` library for **free, unlimited** web search with no API key:
+
+```bash
+pip install duckduckgo-search
+```
+
+**That's it!** `wtf` will automatically use DuckDuckGo for web searches.
+
+!!! tip "Recommended for Most Users"
+    DuckDuckGo search is completely free, requires no API key, and works great for most queries.
+    Just install the package and you're done!
+
+---
+
+### Option 2: OpenAI Native Search
+
+If you're using **OpenAI**, you can use a model with **built-in web search**:
+
+```bash
+# Configure wtf to use OpenAI's search model
+$ wtf --setup
+# Select: gpt-4o-search-preview or gpt-4o-mini-search-preview
+```
+
+**No additional API keys needed.** The model will automatically search the web when relevant.
+
+!!! note "OpenAI Search Models"
+    - `gpt-4o-search-preview` - Best quality, ~$25/1000 searches
+    - `gpt-4o-mini-search-preview` - Faster & cheaper
+    
+    These models search automatically - you don't need to configure anything else.
+
+---
+
+## API-Based Search (Optional)
+
+If you prefer API-based search or DuckDuckGo is rate-limited, you can configure one of these:
+
+### Tavily (Recommended API)
+
+**Best for:** AI-optimized results with summaries
+
+- ✅ **1,000 free searches/month**
+- ✅ **No credit card required**
+- ✅ Returns AI-friendly summaries
+- ✅ Very popular for AI agents
+
+**Get your key:** [tavily.com](https://tavily.com)
+
+**Add it to wtf:**
+```bash
+$ wtf here is my tavily api key tvly-YOUR_KEY_HERE
+```
+
+Or set manually:
+```bash
+export TAVILY_API_KEY="tvly-YOUR_KEY"
+```
+
+---
 
 ## Recommended Search APIs
 
@@ -78,15 +138,20 @@ export BRAVE_SEARCH_API_KEY="YOUR_KEY"
 
 ---
 
-## ✅ All Search Providers Implemented
+## Search Priority
 
-`wtf` will automatically use whichever search API key you have configured. Priority order:
-1. **Serper** (if configured) - Best quality, Google results
-2. **Brave** (if configured) - Privacy-focused
-3. **Bing** (if configured) - Microsoft Azure
-4. **DuckDuckGo** (always available) - Limited to encyclopedic facts only
+`wtf` automatically uses the best available search method:
 
-All three major search APIs are now fully implemented and ready to use!
+1. **Native OpenAI Search** (if using `gpt-4o-search-preview` or `gpt-4o-mini-search-preview`)
+   - Built into the model, no extra config needed
+2. **DuckDuckGo** (if `duckduckgo-search` installed) - FREE & unlimited!
+3. **Tavily** (if API key configured) - AI-optimized results
+4. **Serper** (if API key configured) - Google results
+5. **Brave** (if API key configured) - Privacy-focused
+6. **Bing** (if API key configured) - Microsoft Azure
+7. **DuckDuckGo Instant Answers** (always available) - Limited to encyclopedic facts only
+
+When using native search models, custom search tools are automatically disabled to avoid redundancy.
 
 ## Testing Your Search
 
@@ -138,13 +203,26 @@ Only if you want `wtf` to:
 
 Basic terminal help works fine without it.
 
-**Which one should I use?**
+**Which option should I use?**
 
-**Serper** for most people (when implemented). **Brave Search** for now. Both have generous free tiers.
+- **Easiest:** Install `duckduckgo-search` - free, unlimited, no API key!
+- **OpenAI users:** Use `gpt-4o-search-preview` - no extra setup needed
+- **Want API-based:** Get a **Tavily** key (1,000 free/month) or **Serper** key (2,500 free/month)
 
 **Is this secure?**
 
 Your API key is stored in your system keychain (macOS/Linux) or securely in `~/.config/wtf/config.yaml`. Keys are only used to make search requests on your behalf.
+
+**Will Anthropic Claude get native search?**
+
+Anthropic Claude has a native web search tool, but it's not yet supported through the llm library we use. This may be added in a future update.
+
+**What if DuckDuckGo is rate-limited?**
+
+DuckDuckGo may occasionally rate-limit requests. If this happens, consider:
+- Waiting a few minutes and trying again
+- Installing Tavily (1,000 free searches/month, no credit card)
+- Using an OpenAI search model
 
 ## Next Steps
 

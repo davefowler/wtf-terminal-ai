@@ -1,6 +1,7 @@
 """AI client for querying language models."""
 
 import os
+import sys
 from typing import Iterator, Union, Optional, Dict, Any, List
 import llm
 
@@ -11,7 +12,7 @@ from wtf.ai.errors import (
     parse_api_error,
     query_ai_with_retry,
 )
-from wtf.ai.tools import TOOLS, get_tool_definitions
+from wtf.ai.tools import TOOLS, get_tool_definitions, detect_native_search_support
 
 
 class StuckLoopError(Exception):
@@ -62,9 +63,32 @@ def query_ai_with_tools(
     if not configured_model:
         raise ValueError("No model configured. Run 'wtf --setup' to configure.")
 
+    # Detect native search support
+    provider, has_native_search = detect_native_search_support(configured_model)
+    debug = os.environ.get('WTF_DEBUG') == '1'
+    
+    if debug:
+        print(f"[DEBUG] Model: {configured_model}, Provider: {provider}, Native search: {has_native_search}", file=sys.stderr)
+
     # Get model - llm library handles key management unless we override
     try:
-        model_obj = llm.get_model(configured_model)
+        # For OpenAI search models, we may need to use a base model and override model_id
+        base_model_name = configured_model
+        if provider == "openai_search":
+            # Use gpt-4o as base since llm might not know about search models yet
+            try:
+                model_obj = llm.get_model(configured_model)
+            except Exception:
+                # Fall back to gpt-4o and override the model_id
+                if "mini" in configured_model:
+                    model_obj = llm.get_model("gpt-4o-mini")
+                else:
+                    model_obj = llm.get_model("gpt-4o")
+                model_obj.model_id = configured_model
+                if debug:
+                    print(f"[DEBUG] Using {model_obj.model_id} (overridden from base)", file=sys.stderr)
+        else:
+            model_obj = llm.get_model(configured_model)
 
         # Only override key if explicitly stored in config (not recommended)
         if key_source == 'config':
@@ -86,10 +110,9 @@ def query_ai_with_tools(
 
     # Create llm.Tool objects from our tool definitions
     # Wrap tool implementations to handle dict returns
-    import sys
-    debug = os.environ.get('WTF_DEBUG') == '1'
+    # Pass model name to filter out custom search tools when native search is available
     llm_tools = []
-    tool_definitions = get_tool_definitions(env_context)
+    tool_definitions = get_tool_definitions(env_context, model_name=configured_model)
     if debug:
         print(f"[DEBUG] Creating tools from {len(tool_definitions)} definitions", file=sys.stderr)
     for tool_def in tool_definitions:

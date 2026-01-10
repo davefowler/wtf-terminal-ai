@@ -320,29 +320,32 @@ def run_setup_wizard() -> Dict[str, Any]:
     console.print("[bold]Step 2:[/bold] Choose a model")
     console.print()
 
-    # Popular models by provider (using model ID patterns that match llm library output)
-    # llm uses formats like "anthropic/claude-3-5-sonnet-latest" or "gpt-4o"
+    # Popular models by provider
+    # These are fallback suggestions - we also try to fetch available models from llm.get_models()
+    # Use official model aliases where possible (e.g., "claude-sonnet-4" instead of dated versions)
+    # Note: gpt-4o-search-preview models have built-in web search - no extra API keys needed!
+    # Last updated: January 2026
     models_by_provider = {
         "anthropic": [
-            ("claude-3-7-sonnet", "Claude 3.7 Sonnet (recommended, latest)"),
+            ("claude-sonnet-4", "Claude Sonnet 4 (recommended, latest)"),
             ("claude-3-5-sonnet-latest", "Claude 3.5 Sonnet"),
-            ("claude-3-5-sonnet", "Claude 3.5 Sonnet (dated)"),
-            ("claude-3-opus", "Claude 3 Opus"),
-            ("claude-3-5-haiku", "Claude 3.5 Haiku (fast & cheap)"),
+            ("claude-3-5-haiku-latest", "Claude 3.5 Haiku (fast & cheap)"),
+            ("claude-3-opus-latest", "Claude 3 Opus"),
         ],
         "openai": [
             ("gpt-4o", "GPT-4o (recommended)"),
-            ("chatgpt-4o", "ChatGPT-4o"),
+            ("gpt-4o-search-preview", "GPT-4o Search (built-in web search!)"),
+            ("chatgpt-4o-latest", "ChatGPT-4o"),
             ("gpt-4o-mini", "GPT-4o Mini (fast & cheap)"),
-            ("gpt-4", "GPT-4"),
-            ("gpt-3.5-turbo", "GPT-3.5 Turbo (fast & cheap)"),
+            ("gpt-4o-mini-search-preview", "GPT-4o Mini Search (built-in web search)"),
+            ("gpt-4.1", "GPT-4.1"),
             ("o3", "o3 (reasoning)"),
             ("o1", "o1 (reasoning)"),
         ],
         "google": [
-            ("gemini-1.5-pro", "Gemini 1.5 Pro (recommended)"),
-            ("gemini-1.5-flash", "Gemini 1.5 Flash (fast)"),
-            ("gemini-2", "Gemini 2.0"),
+            ("gemini-2.5-pro", "Gemini 2.5 Pro (recommended)"),
+            ("gemini-2.5-flash", "Gemini 2.5 Flash (fast)"),
+            ("gemini-2.0-flash", "Gemini 2.0 Flash"),
         ],
         "local": [
             ("llama3", "Llama 3 (recommended)"),

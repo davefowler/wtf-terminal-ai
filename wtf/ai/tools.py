@@ -4,7 +4,7 @@ import os
 import subprocess
 import shutil
 import stat
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
 
 from wtf.conversation.history import get_recent_conversations
@@ -16,6 +16,72 @@ from wtf.core.permissions import (
     prompt_for_permission,
     add_to_allowlist,
 )
+
+
+# OpenAI models with built-in web search (search works automatically)
+OPENAI_SEARCH_MODELS = [
+    "gpt-4o-search-preview",
+    "gpt-4o-mini-search-preview",
+]
+
+# Our custom search tool names (excluded when using models with native search)
+CUSTOM_SEARCH_TOOLS = [
+    "duckduckgo_search",
+    "tavily_search",
+    "serper_search",
+    "bing_search", 
+    "brave_search",
+    "web_instant_answers",
+]
+
+
+def detect_native_search_support(model_name: str) -> Tuple[str, bool]:
+    """
+    Detect if a model has native web search support that we can use.
+    
+    Currently supported:
+    - OpenAI search models (gpt-4o-search-preview, gpt-4o-mini-search-preview):
+      These have built-in search that works automatically.
+    
+    Not yet supported (uses custom search tools instead):
+    - Anthropic Claude: Has native web_search tool, but the llm library doesn't
+      support passing it through. Would require direct SDK usage.
+    
+    Args:
+        model_name: The model identifier (e.g., "gpt-4o-search-preview", "claude-sonnet-4")
+    
+    Returns:
+        Tuple of (provider, has_native_search):
+        - provider: "openai_search", "openai", "anthropic", "gemini", "local", or "other"
+        - has_native_search: True if model has built-in search we can use
+    """
+    model_lower = model_name.lower()
+    
+    # Check OpenAI search models (have built-in search, no extra config needed)
+    for search_model in OPENAI_SEARCH_MODELS:
+        if search_model in model_lower:
+            return ("openai_search", True)
+    
+    # Check for other OpenAI models (no native search)
+    if "gpt" in model_lower or "o1" in model_lower or "o3" in model_lower or "o4" in model_lower:
+        return ("openai", False)
+    
+    # Check if it's an Anthropic model
+    # NOTE: Claude has native web_search tool, but llm library doesn't support it yet.
+    # For now, we use our custom search tools with Anthropic.
+    # TODO: Add direct Anthropic SDK support for native web_search in the future.
+    if "claude" in model_lower:
+        return ("anthropic", False)
+    
+    # Check for Gemini models
+    if "gemini" in model_lower:
+        return ("gemini", False)
+    
+    # Check for Ollama/local models
+    if "llama" in model_lower or "mistral" in model_lower or "qwen" in model_lower:
+        return ("local", False)
+    
+    return ("other", False)
 
 
 def run_command(command: str) -> Dict[str, Any]:
@@ -1150,7 +1216,14 @@ def brave_search(query: str) -> Dict[str, Any]:
         if not api_key:
             return {
                 "results": None,
-                "error": "Brave Search API key not configured. Get a free key at https://brave.com/search/api/ then save it with: wtf here is my brave search api key YOUR_KEY",
+                "error": (
+                    "Brave Search API key not configured.\n\n"
+                    "For FREE search with no API key, install duckduckgo-search:\n"
+                    "  pip install duckduckgo-search\n\n"
+                    "Or get a Brave API key (2,000 free/month):\n"
+                    "  https://brave.com/search/api\n"
+                    "  Then: wtf here is my brave search api key YOUR_KEY"
+                ),
                 "should_print": False
             }
 
@@ -1243,7 +1316,14 @@ def serper_search(query: str) -> Dict[str, Any]:
         if not api_key:
             return {
                 "results": None,
-                "error": "Serper API key not configured. Get a free key at https://serper.dev then save it with: wtf here is my serper api key YOUR_KEY",
+                "error": (
+                    "Serper API key not configured.\n\n"
+                    "For FREE search with no API key, install duckduckgo-search:\n"
+                    "  pip install duckduckgo-search\n\n"
+                    "Or get a Serper API key (2,500 free/month):\n"
+                    "  https://serper.dev\n"
+                    "  Then: wtf here is my serper api key YOUR_KEY"
+                ),
                 "should_print": False
             }
 
@@ -1336,7 +1416,14 @@ def bing_search(query: str) -> Dict[str, Any]:
         if not api_key:
             return {
                 "results": None,
-                "error": "Bing Search API key not configured. Get a key from Azure Portal then save it with: wtf here is my bing search api key YOUR_KEY",
+                "error": (
+                    "Bing Search API key not configured.\n\n"
+                    "For FREE search with no API key, install duckduckgo-search:\n"
+                    "  pip install duckduckgo-search\n\n"
+                    "Or get a Bing API key (1,000 free/month) from Azure Portal:\n"
+                    "  https://portal.azure.com\n"
+                    "  Then: wtf here is my bing search api key YOUR_KEY"
+                ),
                 "should_print": False
             }
 
@@ -1449,6 +1536,204 @@ def web_instant_answers(query: str) -> Dict[str, Any]:
         }
 
 
+def duckduckgo_search(query: str) -> Dict[str, Any]:
+    """
+    Search the web using DuckDuckGo (via duckduckgo-search library).
+
+    FREE and unlimited - no API key required!
+    Requires: pip install duckduckgo-search
+
+    Args:
+        query: Search query
+
+    Returns:
+        Dict with:
+        - results: Search results with titles, URLs, descriptions
+        - should_print: False (internal tool)
+    """
+    try:
+        from duckduckgo_search import DDGS
+    except ImportError:
+        return {
+            "results": None,
+            "error": (
+                "DuckDuckGo search not available. Install it with:\n"
+                "  pip install duckduckgo-search\n\n"
+                "This provides FREE unlimited web search with no API key needed!\n\n"
+                "Alternative search options:\n"
+                "  • Tavily: 1,000 free searches/month - https://tavily.com\n"
+                "  • Serper: 2,500 free searches/month - https://serper.dev\n"
+                "  • Brave: 2,000 free searches/month - https://brave.com/search/api"
+            ),
+            "should_print": False
+        }
+
+    try:
+        # Perform search
+        with DDGS() as ddgs:
+            results_list = list(ddgs.text(query, max_results=5))
+
+        if not results_list:
+            return {
+                "results": "No results found",
+                "should_print": False
+            }
+
+        # Format results
+        results = []
+        for item in results_list:
+            results.append({
+                "title": item.get("title", ""),
+                "url": item.get("href", ""),
+                "description": item.get("body", "")
+            })
+
+        formatted = "\n\n".join([
+            f"{r['title']}\n{r['url']}\n{r['description']}"
+            for r in results
+        ])
+
+        return {
+            "results": formatted,
+            "should_print": False
+        }
+
+    except Exception as e:
+        error_str = str(e)
+        # Check for rate limiting or blocking
+        if "ratelimit" in error_str.lower() or "blocked" in error_str.lower():
+            return {
+                "results": None,
+                "error": (
+                    f"DuckDuckGo rate limited: {e}\n\n"
+                    "Try again in a few minutes, or use an API-based search:\n"
+                    "  • Tavily: 1,000 free/month - https://tavily.com\n"
+                    "  • Serper: 2,500 free/month - https://serper.dev"
+                ),
+                "should_print": False
+            }
+        return {
+            "results": None,
+            "error": f"DuckDuckGo search failed: {e}",
+            "should_print": False
+        }
+
+
+def tavily_search(query: str) -> Dict[str, Any]:
+    """
+    Search the web using Tavily API.
+
+    Optimized for AI agents - returns clean, relevant results.
+    1,000 free searches/month at https://tavily.com
+
+    Args:
+        query: Search query
+
+    Returns:
+        Dict with:
+        - results: Search results with titles, URLs, descriptions
+        - should_print: False (internal tool)
+    """
+    try:
+        import urllib.request
+        import urllib.parse
+        import json
+
+        # Check for API key in config
+        config = load_config()
+        api_key = config.get("api_keys", {}).get("tavily")
+
+        if not api_key:
+            # Also check environment variable
+            api_key = os.environ.get("TAVILY_API_KEY")
+
+        if not api_key:
+            return {
+                "results": None,
+                "error": (
+                    "Tavily API key not configured.\n\n"
+                    "Get a FREE API key (1,000 searches/month, no credit card):\n"
+                    "  https://tavily.com\n\n"
+                    "Then save it with:\n"
+                    "  wtf here is my tavily api key YOUR_KEY\n\n"
+                    "Or for FREE search with no API key, install duckduckgo-search:\n"
+                    "  pip install duckduckgo-search"
+                ),
+                "should_print": False
+            }
+
+        # Call Tavily API
+        url = "https://api.tavily.com/search"
+        data = json.dumps({
+            "api_key": api_key,
+            "query": query,
+            "max_results": 5,
+            "include_answer": True
+        }).encode('utf-8')
+
+        req = urllib.request.Request(url, data=data, method='POST')
+        req.add_header("Content-Type", "application/json")
+
+        with urllib.request.urlopen(req, timeout=15) as response:
+            result = json.loads(response.read().decode())
+
+        # Extract results
+        results = []
+        
+        # Include the AI-generated answer if available
+        if result.get("answer"):
+            results.append(f"Summary: {result['answer']}\n")
+
+        for item in result.get("results", [])[:5]:
+            results.append({
+                "title": item.get("title", ""),
+                "url": item.get("url", ""),
+                "description": item.get("content", "")[:300]  # Truncate long content
+            })
+
+        if not results:
+            return {
+                "results": "No results found",
+                "should_print": False
+            }
+
+        # Format results
+        formatted_results = []
+        for r in results:
+            if isinstance(r, str):
+                formatted_results.append(r)
+            else:
+                formatted_results.append(f"{r['title']}\n{r['url']}\n{r['description']}")
+
+        return {
+            "results": "\n\n".join(formatted_results),
+            "should_print": False
+        }
+
+    except urllib.error.HTTPError as e:
+        if e.code == 401 or e.code == 403:
+            return {
+                "results": None,
+                "error": (
+                    "Tavily API key is invalid.\n"
+                    "Check your key at https://tavily.com"
+                ),
+                "should_print": False
+            }
+        else:
+            return {
+                "results": None,
+                "error": f"Tavily API error: {e.code} {e.reason}",
+                "should_print": False
+            }
+    except Exception as e:
+        return {
+            "results": None,
+            "error": f"Tavily search failed: {str(e)}",
+            "should_print": False
+        }
+
+
 # Tool registry for llm library
 TOOLS = {
     "run_command": run_command,
@@ -1465,6 +1750,8 @@ TOOLS = {
     "get_user_memories": get_user_memories,
     "delete_user_memory": delete_user_memory,
     "clear_user_memories": clear_user_memories,
+    "duckduckgo_search": duckduckgo_search,
+    "tavily_search": tavily_search,
     "brave_search": brave_search,
     "serper_search": serper_search,
     "bing_search": bing_search,
@@ -1477,22 +1764,33 @@ TOOLS = {
 }
 
 
-def get_tool_definitions(env_context: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+def get_tool_definitions(
+    env_context: Optional[Dict[str, Any]] = None,
+    model_name: Optional[str] = None
+) -> List[Dict[str, Any]]:
     """
     Get tool definitions in the format expected by LLM providers.
 
     Optionally filters tools based on environment context to avoid
     offering irrelevant tools (e.g., git tools when not in a repo).
+    
+    Also filters out custom search tools when using a model with
+    native web search support (OpenAI search models, Anthropic Claude).
 
     Args:
         env_context: Optional environment info with keys like:
             - is_git_repo: bool
             - has_package_json: bool
             - has_requirements_txt: bool
+        model_name: Optional model name to detect native search support
 
     Returns:
         List of tool definition dicts
     """
+    # Detect if model has native search support
+    has_native_search = False
+    if model_name:
+        _, has_native_search = detect_native_search_support(model_name)
     # Base tools always available
     base_tools = [
         {
@@ -1722,8 +2020,36 @@ def get_tool_definitions(env_context: Optional[Dict[str, Any]] = None) -> List[D
             }
         },
         {
+            "name": "duckduckgo_search",
+            "description": "Search the web using DuckDuckGo - FREE and UNLIMITED, no API key required! Works for ANY web search (weather, news, docs, current events, etc.). PREFERRED search tool - try this first. Requires: pip install duckduckgo-search",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Web search query"
+                    }
+                },
+                "required": ["query"]
+            }
+        },
+        {
+            "name": "tavily_search",
+            "description": "Search the web using Tavily API - optimized for AI agents, returns clean results with summaries. 1,000 free searches/month at https://tavily.com (no credit card required). Use if duckduckgo_search is unavailable.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {
+                        "type": "string",
+                        "description": "Web search query"
+                    }
+                },
+                "required": ["query"]
+            }
+        },
+        {
             "name": "serper_search",
-            "description": "Search the web using Serper.dev (Google search results) - works for ANY web search (weather, news, docs, current events, etc.). PREFERRED search tool if user has Serper API key configured. 2,500 free searches/month at https://serper.dev",
+            "description": "Search the web using Serper.dev (Google search results) - works for ANY web search (weather, news, docs, current events, etc.). 2,500 free searches/month at https://serper.dev",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1852,18 +2178,22 @@ def get_tool_definitions(env_context: Optional[Dict[str, Any]] = None) -> List[D
         }
     ]
 
-    # Filter tools based on environment if context provided
-    if env_context:
-        filtered_tools = []
-
-        for tool in base_tools:
-            tool_name = tool["name"]
-
+    # Filter tools based on environment and native search support
+    filtered_tools = []
+    
+    for tool in base_tools:
+        tool_name = tool["name"]
+        
+        # Skip our custom search tools if model has native search
+        if has_native_search and tool_name in CUSTOM_SEARCH_TOOLS:
+            continue
+        
+        # Environment-based filtering
+        if env_context:
             # Git tool only in git repos
             if tool_name == "get_git_info":
-                if env_context.get("is_git_repo"):
-                    filtered_tools.append(tool)
-                continue
+                if not env_context.get("is_git_repo"):
+                    continue
 
             # Package manager tools only if relevant files exist
             if tool_name == "check_package_installed":
@@ -1873,14 +2203,9 @@ def get_tool_definitions(env_context: Optional[Dict[str, Any]] = None) -> List[D
                     env_context.get("has_cargo_toml") or
                     env_context.get("has_gemfile")
                 )
-                if has_package_file:
-                    filtered_tools.append(tool)
-                continue
+                if not has_package_file:
+                    continue
+        
+        filtered_tools.append(tool)
 
-            # All other tools always included
-            filtered_tools.append(tool)
-
-        return filtered_tools
-
-    # No filtering - return all tools
-    return base_tools
+    return filtered_tools
