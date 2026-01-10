@@ -4,7 +4,6 @@ set -e
 # wtf installation script
 # Usage: curl -sSL https://raw.githubusercontent.com/davefowler/wtf-terminal-ai/main/install.sh | bash
 
-VERSION="0.1.0"
 REPO="davefowler/wtf-terminal-ai"
 
 # Colors for output
@@ -157,12 +156,12 @@ echo ""
 
 INSTALL_SUCCESS=false
 
-# Try with --user flag first
-if pip3 install --user wtf-ai > /tmp/wtf-install.log 2>&1; then
+# Try with --user flag first (--upgrade ensures we get latest version)
+if pip3 install --user --upgrade wtf-ai > /tmp/wtf-install.log 2>&1; then
     INSTALL_SUCCESS=true
 else
     # Try without --user flag (needed for some systems/virtual envs)
-    if pip3 install wtf-ai > /tmp/wtf-install.log 2>&1; then
+    if pip3 install --upgrade wtf-ai > /tmp/wtf-install.log 2>&1; then
         INSTALL_SUCCESS=true
     fi
 fi
