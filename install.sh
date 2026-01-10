@@ -1,17 +1,20 @@
 #!/bin/bash
-set -e
 
 # wtf installation script
 # Usage: curl -sSL https://raw.githubusercontent.com/davefowler/wtf-terminal-ai/main/install.sh | bash
 
 REPO="davefowler/wtf-terminal-ai"
 
-# Colors for output
+# Colors for output (defined early so trap can use them)
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 CYAN='\033[0;36m'
 NC='\033[0m' # No Color
+
+# Exit on error, but with proper error messages
+set -e
+trap 'echo ""; echo -e "${RED}✗ Installation failed at line $LINENO${NC}"; echo ""; echo "Please report this issue at: https://github.com/$REPO/issues"' ERR
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
@@ -20,6 +23,8 @@ echo "║   wtf - Because working in the terminal gets you asking wtf  ║"
 echo "║                                                              ║"
 echo "╚══════════════════════════════════════════════════════════════╝"
 echo ""
+
+echo "Checking Python installation..."
 
 # Find a suitable Python version (3.9+, prefer newest)
 REQUIRED_VERSION="3.9"
@@ -32,12 +37,17 @@ check_python() {
     local version
     
     # Skip if command doesn't exist
-    if ! command -v "$cmd" &> /dev/null && [ ! -x "$cmd" ]; then
-        return 1
+    if ! command -v "$cmd" &> /dev/null 2>&1; then
+        if [ ! -x "$cmd" ] 2>/dev/null; then
+            return 0  # Not found, but not an error
+        fi
     fi
     
-    # Get version
-    version=$("$cmd" -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null) || return 1
+    # Get version (don't fail if this doesn't work)
+    version=$("$cmd" -c 'import sys; print(".".join(map(str, sys.version_info[:2])))' 2>/dev/null)
+    if [ -z "$version" ]; then
+        return 0  # Couldn't get version, skip this one
+    fi
     
     # Check if version meets minimum requirement
     if [ "$(printf '%s\n' "$REQUIRED_VERSION" "$version" | sort -V | head -n1)" = "$REQUIRED_VERSION" ]; then
@@ -50,28 +60,37 @@ check_python() {
             PYTHON_VERSION="$version"
         fi
     fi
+    return 0
 }
 
 # Try versioned commands first (newest to oldest)
-for cmd in python3.13 python3.12 python3.11 python3.10 python3.9; do
-    check_python "$cmd" || true
-done
+check_python python3.13
+check_python python3.12
+check_python python3.11
+check_python python3.10
+check_python python3.9
 
 # Try generic python3
-check_python python3 || true
+check_python python3
 
 # Check common Homebrew locations on macOS
 if [ -d "/opt/homebrew/bin" ]; then
-    for cmd in /opt/homebrew/bin/python3.13 /opt/homebrew/bin/python3.12 /opt/homebrew/bin/python3.11 /opt/homebrew/bin/python3.10 /opt/homebrew/bin/python3.9 /opt/homebrew/bin/python3; do
-        [ -x "$cmd" ] && check_python "$cmd" || true
-    done
+    check_python /opt/homebrew/bin/python3.13
+    check_python /opt/homebrew/bin/python3.12
+    check_python /opt/homebrew/bin/python3.11
+    check_python /opt/homebrew/bin/python3.10
+    check_python /opt/homebrew/bin/python3.9
+    check_python /opt/homebrew/bin/python3
 fi
 
 # Check /usr/local/bin (Intel Mac Homebrew, manual installs)
 if [ -d "/usr/local/bin" ]; then
-    for cmd in /usr/local/bin/python3.13 /usr/local/bin/python3.12 /usr/local/bin/python3.11 /usr/local/bin/python3.10 /usr/local/bin/python3.9 /usr/local/bin/python3; do
-        [ -x "$cmd" ] && check_python "$cmd" || true
-    done
+    check_python /usr/local/bin/python3.13
+    check_python /usr/local/bin/python3.12
+    check_python /usr/local/bin/python3.11
+    check_python /usr/local/bin/python3.10
+    check_python /usr/local/bin/python3.9
+    check_python /usr/local/bin/python3
 fi
 
 if [ -z "$PYTHON_CMD" ]; then
