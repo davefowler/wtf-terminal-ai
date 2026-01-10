@@ -208,8 +208,8 @@ def run_setup_wizard() -> Dict[str, Any]:
     ))
     console.print()
 
-    # 1. List available models from llm
-    console.print("[bold]Step 1:[/bold] Choose a model")
+    # 1. Choose provider first
+    console.print("[bold]Step 1:[/bold] Choose your AI provider")
     console.print()
     console.print("[dim]Discovering available models...[/dim]")
     console.print()
@@ -236,101 +236,124 @@ def run_setup_wizard() -> Dict[str, Any]:
             grouped[provider_name] = []
         grouped[provider_name].append(model.model_id)
 
-    # Detect which API keys are available (local models don't need keys)
+    # Detect which API keys are available
     detected_keys = {
         "anthropic": bool(os.environ.get("ANTHROPIC_API_KEY")),
         "openai": bool(os.environ.get("OPENAI_API_KEY")),
         "google": bool(os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")),
-        "local": True,  # Ollama models don't require API keys
     }
 
-    # Show which keys were detected
-    detected_api_keys = [k for k, v in detected_keys.items() if v and k != "local"]
-    if detected_api_keys:
-        console.print(f"[green]✓[/green] API keys detected: {', '.join(detected_api_keys)}")
-    
-    # Check if Ollama is available (local models)
-    has_local_models = any("llama" in m.lower() or "mistral" in m.lower() or "qwen" in m.lower() 
-                           or "deepseek" in m.lower() or "codellama" in m.lower()
-                           for m in all_available_ids) if 'all_available_ids' in dir() else False
-    # Note: all_available_ids not defined yet, we'll check grouped
+    # Check if local models are available (Ollama)
+    all_available_ids = [m for models in grouped.values() for m in models]
     has_local_models = any(
-        any("llama" in m.lower() or "mistral" in m.lower() or "qwen" in m.lower() 
-            or "deepseek" in m.lower() for m in models)
-        for models in grouped.values()
+        "llama" in m.lower() or "mistral" in m.lower() or "qwen" in m.lower() 
+        or "deepseek" in m.lower() or "codellama" in m.lower() or "phi" in m.lower()
+        for m in all_available_ids
     )
-    if has_local_models:
-        console.print(f"[green]✓[/green] Local models detected (Ollama)")
-    
-    console.print()
 
-    # Show popular models first (order matters - most recommended first)
-    # Model IDs use partial matching to handle version suffixes like -20241022
-    # Format: (model_id_prefix, description, provider_key)
-    popular = [
-        # Anthropic Claude models
-        ("claude-sonnet-4", "Anthropic Claude Sonnet 4 (recommended)", "anthropic"),
-        ("claude-3-5-sonnet", "Anthropic Claude 3.5 Sonnet", "anthropic"),
-        ("claude-3-7-sonnet", "Anthropic Claude 3.7 Sonnet", "anthropic"),
-        ("claude-opus-4", "Anthropic Claude Opus 4", "anthropic"),
-        ("claude-3-opus", "Anthropic Claude 3 Opus", "anthropic"),
-        ("claude-3-5-haiku", "Anthropic Claude 3.5 Haiku (fast & cheap)", "anthropic"),
-        # OpenAI models
-        ("gpt-5", "OpenAI GPT-5", "openai"),
-        ("gpt-4.5", "OpenAI GPT-4.5", "openai"),
-        ("o3", "OpenAI o3 (reasoning)", "openai"),
-        ("o1", "OpenAI o1 (reasoning)", "openai"),
-        ("gpt-4o", "OpenAI GPT-4o", "openai"),
-        ("gpt-4o-mini", "OpenAI GPT-4o Mini (fast & cheap)", "openai"),
-        ("o1-mini", "OpenAI o1 Mini (reasoning, cheaper)", "openai"),
-        # Google models
-        ("gemini-2.0", "Google Gemini 2.0", "google"),
-        ("gemini-1.5-pro", "Google Gemini 1.5 Pro", "google"),
-        ("gemini-1.5-flash", "Google Gemini 1.5 Flash (fast)", "google"),
-        # Local models (Ollama) - no API key needed
-        ("llama3.2", "Ollama Llama 3.2 (local, free)", "local"),
-        ("llama3.1", "Ollama Llama 3.1 (local, free)", "local"),
-        ("llama3", "Ollama Llama 3 (local, free)", "local"),
-        ("mistral", "Ollama Mistral (local, free)", "local"),
-        ("qwen2.5", "Ollama Qwen 2.5 (local, free)", "local"),
-        ("deepseek-r1", "Ollama DeepSeek R1 (local, reasoning)", "local"),
-        ("codellama", "Ollama CodeLlama (local, coding)", "local"),
+    # Define providers with their display info
+    providers = [
+        ("anthropic", "Anthropic (Claude)", "claude"),
+        ("openai", "OpenAI (GPT, o1, o3)", "gpt"),
+        ("google", "Google (Gemini)", "gemini"),
+        ("local", "Local (Ollama)", None),
     ]
 
-    # Helper to check if a popular model matches any available model
+    # Show provider choices
+    provider_choices = []
+    for provider_key, provider_name, _ in providers:
+        status = ""
+        if provider_key == "local":
+            if has_local_models:
+                status = " [green](models detected)[/green]"
+                provider_choices.append((provider_key, provider_name))
+        elif detected_keys.get(provider_key):
+            status = " [green](key detected)[/green]"
+            provider_choices.append((provider_key, provider_name))
+        else:
+            provider_choices.append((provider_key, provider_name))
+        
+        console.print(f"  [cyan]{len(provider_choices)}.[/cyan] {provider_name}{status}")
+
+    console.print()
+    provider_choice = Prompt.ask(
+        "Select provider",
+        choices=[str(i) for i in range(1, len(provider_choices) + 1)],
+        default="1"
+    )
+    selected_provider = provider_choices[int(provider_choice) - 1][0]
+
+    console.print()
+    console.print(f"[green]✓[/green] Selected provider: [cyan]{provider_choices[int(provider_choice) - 1][1]}[/cyan]")
+
+    # 2. Choose model from selected provider
+    console.print()
+    console.print("[bold]Step 2:[/bold] Choose a model")
+    console.print()
+
+    # Popular models by provider
+    models_by_provider = {
+        "anthropic": [
+            ("claude-sonnet-4", "Claude Sonnet 4 (recommended)"),
+            ("claude-3-7-sonnet", "Claude 3.7 Sonnet"),
+            ("claude-3-5-sonnet", "Claude 3.5 Sonnet"),
+            ("claude-opus-4", "Claude Opus 4"),
+            ("claude-3-opus", "Claude 3 Opus"),
+            ("claude-3-5-haiku", "Claude 3.5 Haiku (fast & cheap)"),
+        ],
+        "openai": [
+            ("gpt-4o", "GPT-4o (recommended)"),
+            ("gpt-4o-mini", "GPT-4o Mini (fast & cheap)"),
+            ("o3", "o3 (reasoning)"),
+            ("o1", "o1 (reasoning)"),
+            ("o1-mini", "o1 Mini (reasoning, cheaper)"),
+            ("gpt-5", "GPT-5"),
+            ("gpt-4.5", "GPT-4.5"),
+        ],
+        "google": [
+            ("gemini-2.0", "Gemini 2.0 (recommended)"),
+            ("gemini-1.5-pro", "Gemini 1.5 Pro"),
+            ("gemini-1.5-flash", "Gemini 1.5 Flash (fast)"),
+        ],
+        "local": [
+            ("llama3.2", "Llama 3.2 (recommended)"),
+            ("llama3.1", "Llama 3.1"),
+            ("llama3", "Llama 3"),
+            ("deepseek-r1", "DeepSeek R1 (reasoning)"),
+            ("qwen2.5", "Qwen 2.5"),
+            ("mistral", "Mistral"),
+            ("codellama", "CodeLlama (coding)"),
+            ("phi", "Phi"),
+        ],
+    }
+
+    # Helper to check if a model matches any available model
     def model_matches(model_id: str, available_ids: List[str]) -> Optional[str]:
         """Check if model_id matches any available model. Returns the actual model ID if found."""
         for available in available_ids:
-            # Exact match
             if model_id == available:
                 return available
-            # model_id is prefix of available (e.g., "claude-3-5-sonnet" matches "claude-3-5-sonnet-20241022")
             if available.startswith(model_id):
                 return available
-            # available is prefix of model_id (e.g., "gpt-4o" matches available "gpt-4o")
             if model_id.startswith(available):
                 return available
         return None
 
-    # Show popular models that are available
-    all_available_ids = [m for models in grouped.values() for m in models]
-    model_choices = []  # List of (model_id, description, provider)
-    for model_id, description, provider in popular:
+    # Get models for selected provider
+    popular_models = models_by_provider.get(selected_provider, [])
+    model_choices = []
+    
+    for model_id, description in popular_models:
         matched = model_matches(model_id, all_available_ids)
         if matched:
-            # Use the actual model ID from llm library (may have version suffix)
-            model_choices.append((matched, description, provider))
+            model_choices.append((matched, description))
 
-    # Show them
+    # Show model choices
     if model_choices:
-        for i, (model_id, description, provider) in enumerate(model_choices, 1):
-            # Add "(keys detected)" if API key is available for this provider
-            if detected_keys.get(provider):
-                console.print(f"  [cyan]{i}.[/cyan] {description} [green](keys detected)[/green]")
-            else:
-                console.print(f"  [cyan]{i}.[/cyan] {description}")
-
-        # Add option to see all
+        for i, (model_id, description) in enumerate(model_choices, 1):
+            console.print(f"  [cyan]{i}.[/cyan] {description}")
+        
+        # Add option to see all models from this provider
         console.print(f"  [cyan]{len(model_choices) + 1}.[/cyan] See all available models")
         console.print()
 
@@ -339,24 +362,42 @@ def run_setup_wizard() -> Dict[str, Any]:
             choices=[str(i) for i in range(1, len(model_choices) + 2)],
             default="1"
         )
+        choice_idx = int(choice) - 1
+
+        if choice_idx == len(model_choices):
+            # Show all models (from any provider)
+            console.print()
+            console.print("[bold]All Available Models:[/bold]")
+            console.print()
+
+            all_models = []
+            for provider, models in sorted(grouped.items()):
+                console.print(f"[bold]{provider}:[/bold]")
+                for model_id in sorted(models)[:5]:
+                    all_models.append(model_id)
+                    console.print(f"  [cyan]{len(all_models)}.[/cyan] {model_id}")
+                if len(models) > 5:
+                    console.print(f"  [dim]...and {len(models) - 5} more[/dim]")
+                console.print()
+
+            console.print()
+            choice = Prompt.ask(
+                "Select model number",
+                choices=[str(i) for i in range(1, len(all_models) + 1)],
+                default="1"
+            )
+            selected_model = all_models[int(choice) - 1]
+        else:
+            selected_model = model_choices[choice_idx][0]
     else:
-        # No popular models matched - show all available models
-        console.print("[dim]Showing all available models:[/dim]")
+        # No popular models found - show all available
+        console.print("[dim]No popular models found for this provider. Showing all:[/dim]")
         console.print()
-        choice = "1"  # Skip straight to all models view
-
-    choice_idx = int(choice) - 1
-
-    if choice_idx == len(model_choices):
-        # Show all models grouped by provider
-        console.print()
-        console.print("[bold]All Available Models:[/bold]")
-        console.print()
-
+        
         all_models = []
         for provider, models in sorted(grouped.items()):
             console.print(f"[bold]{provider}:[/bold]")
-            for model_id in sorted(models)[:5]:  # Show first 5 per provider
+            for model_id in sorted(models)[:5]:
                 all_models.append(model_id)
                 console.print(f"  [cyan]{len(all_models)}.[/cyan] {model_id}")
             if len(models) > 5:
@@ -370,8 +411,6 @@ def run_setup_wizard() -> Dict[str, Any]:
             default="1"
         )
         selected_model = all_models[int(choice) - 1]
-    else:
-        selected_model = model_choices[choice_idx][0]
 
     console.print()
     console.print(f"[green]✓[/green] Selected: [cyan]{selected_model}[/cyan]")
