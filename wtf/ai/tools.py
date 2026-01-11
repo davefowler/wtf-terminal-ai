@@ -18,6 +18,11 @@ from wtf.core.permissions import (
 )
 
 
+class UserCancelledError(Exception):
+    """Raised when user cancels a command - stops AI from trying alternatives."""
+    pass
+
+
 # OpenAI models with built-in web search (search works automatically)
 OPENAI_SEARCH_MODELS = [
     "gpt-4o-search-preview",
@@ -145,12 +150,11 @@ def run_command(command: str) -> Dict[str, Any]:
             )
             
             if response == "no":
-                return {
-                    "output": "Command cancelled by user",
-                    "exit_code": 130,
-                    "should_print": True,
-                    "cancelled": True
-                }
+                # Raise exception to stop AI from trying more commands
+                raise UserCancelledError(
+                    "Command cancelled. If you want a different approach, try being more specific.\n"
+                    "Example: wtf use grep instead of ripgrep to search for 'foo'"
+                )
             elif response == "yes_always":
                 add_to_allowlist(allowlist_pattern)
     

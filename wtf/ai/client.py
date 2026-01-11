@@ -124,7 +124,12 @@ def query_ai_with_tools(
         # Wrapper to convert dict returns to strings
         def make_wrapper(func):
             def wrapper(*args, **kwargs):
-                result = func(*args, **kwargs)
+                from wtf.ai.tools import UserCancelledError
+                try:
+                    result = func(*args, **kwargs)
+                except UserCancelledError:
+                    # Re-raise user cancellation - don't convert to string
+                    raise
                 # If tool returns dict, convert to string
                 if isinstance(result, dict):
                     # Check for error first

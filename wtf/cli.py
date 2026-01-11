@@ -25,6 +25,7 @@ from wtf.context.env import get_environment_context, build_tool_env_context
 from wtf.ai.prompts import build_system_prompt, build_context_prompt
 from wtf.ai.client import query_ai_with_tools
 from wtf.ai.errors import InvalidAPIKeyError, NetworkError, RateLimitError
+from wtf.ai.tools import UserCancelledError
 from wtf.conversation.memory import (
     load_memories,
     save_memory,
@@ -1177,6 +1178,13 @@ def handle_query_with_tools(query: str, config: Dict[str, Any]) -> None:
             "commands": [tc["arguments"].get("command", "") for tc in result["tool_calls"] if tc["name"] == "run_command"],
             "exit_code": 0
         })
+
+    except UserCancelledError as e:
+        # User said "no" to a command - exit gracefully with their message
+        console.print()
+        console.print(f"[yellow]{e}[/yellow]")
+        console.print()
+        return  # Don't log as error
 
     except Exception as e:
         console.print()
