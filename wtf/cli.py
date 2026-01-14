@@ -1379,11 +1379,6 @@ def _handle_query(args, config) -> None:
     """Handle user query or show helpful message."""
     if args.query:
         query = ' '.join(args.query)
-        
-        # Check for "update" command (without --)
-        query_lower = query.lower().strip()
-        if query_lower in ["update", "upgrade", "update yourself", "upgrade yourself"]:
-            _handle_upgrade_flag()
         # Set verbose/debug mode via environment variable
         if args.verbose:
             os.environ['WTF_DEBUG'] = '1'
