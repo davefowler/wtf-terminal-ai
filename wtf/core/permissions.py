@@ -205,10 +205,10 @@ def prompt_for_permission(
     # Build prompt text
     if allowlist_pattern:
         prompt_text = "Run this command? [[cyan]Y[/cyan]]es / Yes and [[cyan]a[/cyan]]lways / [[cyan]n[/cyan]]o"
-        choices = ["y", "yes", "a", "always", "n", "no"]
+        choices = ["y", "Y", "yes", "Yes", "YES", "a", "A", "always", "Always", "ALWAYS", "n", "N", "no", "No", "NO"]
     else:
         prompt_text = "Run this command? [[cyan]Y[/cyan]]es / [[cyan]n[/cyan]]o"
-        choices = ["y", "yes", "n", "no"]
+        choices = ["y", "Y", "yes", "Yes", "YES", "n", "N", "no", "No", "NO"]
 
     response = Prompt.ask(
         prompt_text,
