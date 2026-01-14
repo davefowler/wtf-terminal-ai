@@ -203,7 +203,33 @@ def query_ai_with_tools(
         console = Console()
         
         if tool and tool.name in tool_descriptions:
-            console.print(f"[dim]{tool_descriptions[tool.name]}[/dim]")
+            msg = tool_descriptions[tool.name]
+            # For run_command, show the actual command
+            if tool.name == "run_command" and hasattr(tool_call, 'arguments'):
+                cmd = tool_call.arguments.get('command', '')
+                if cmd:
+                    msg = f"⚡ Running: [cyan]{cmd}[/cyan]"
+            # For read_file, show the filename
+            elif tool.name == "read_file" and hasattr(tool_call, 'arguments'):
+                path = tool_call.arguments.get('file_path', '')
+                if path:
+                    msg = f"📄 Reading: [cyan]{path}[/cyan]"
+            # For search, show the query
+            elif "search" in tool.name and hasattr(tool_call, 'arguments'):
+                query = tool_call.arguments.get('query', '')
+                if query:
+                    msg = f"🔍 Searching: [cyan]{query}[/cyan]"
+            # For glob, show the pattern
+            elif tool.name == "glob_files" and hasattr(tool_call, 'arguments'):
+                pattern = tool_call.arguments.get('pattern', '')
+                if pattern:
+                    msg = f"📂 Finding: [cyan]{pattern}[/cyan]"
+            # For grep, show the pattern
+            elif tool.name == "grep" and hasattr(tool_call, 'arguments'):
+                pattern = tool_call.arguments.get('pattern', '')
+                if pattern:
+                    msg = f"🔎 Grep: [cyan]{pattern}[/cyan]"
+            console.print(f"[dim]{msg}[/dim]")
 
     # Track tool usage with callbacks (after tool completes)
     def after_tool_call(tool: llm.Tool, tool_call: llm.ToolCall, result: llm.ToolResult):
