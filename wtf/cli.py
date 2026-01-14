@@ -59,6 +59,7 @@ whatever crosses your mind and we'll do our best to make it happen.
 [bold]EXAMPLES OF THINGS THAT WORK:[/bold]
   wtf                              [dim]# No args? We'll look at recent context[/dim]
   wtf undo                         [dim]# Made a mistake? We'll reverse it[/dim]
+  wtf update                       [dim]# Update wtf to latest version[/dim]
   wtf install express              [dim]# Need something? We'll install it[/dim]
   wtf "what does this error mean?" [dim]# Confused? We'll explain[/dim]
   wtf how do I exit vim            [dim]# Trapped? We'll free you[/dim]
@@ -131,7 +132,7 @@ Look, we're not completely flag-free. Sometimes you need precision:
 
   --help, -h         This message (meta achievement unlocked)
   --version, -v      Print version number
-  --upgrade          Upgrade wtf and all AI model plugins
+  --update/--upgrade Upgrade wtf and all AI model plugins
   --config           Open config file in your editor
   --model MODEL      Override AI model (must be specified BEFORE your query)
   --verbose          Show diagnostic info
@@ -1223,7 +1224,7 @@ def _parse_arguments():
     parser.add_argument('--setup-error-hook', action='store_true', help='Setup error hook')
     parser.add_argument('--setup-not-found-hook', action='store_true', help='Setup not-found hook')
     parser.add_argument('--remove-hooks', action='store_true', help='Remove shell hooks')
-    parser.add_argument('--upgrade', action='store_true', help='Upgrade wtf and all AI model plugins')
+    parser.add_argument('--upgrade', '--update', action='store_true', help='Upgrade wtf and all AI model plugins')
 
     # Collect the rest as the user query
     parser.add_argument('query', nargs='*', help='Your query for wtf')
@@ -1378,6 +1379,11 @@ def _handle_query(args, config) -> None:
     """Handle user query or show helpful message."""
     if args.query:
         query = ' '.join(args.query)
+        
+        # Check for "update" command (without --)
+        query_lower = query.lower().strip()
+        if query_lower in ["update", "upgrade", "update yourself", "upgrade yourself"]:
+            _handle_upgrade_flag()
         # Set verbose/debug mode via environment variable
         if args.verbose:
             os.environ['WTF_DEBUG'] = '1'
