@@ -1,6 +1,5 @@
 """Tests for AI agent tools."""
 
-import json
 import pytest
 import tempfile
 import os

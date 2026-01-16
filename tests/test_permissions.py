@@ -5,7 +5,6 @@ import pytest
 from unittest.mock import patch, MagicMock
 from pathlib import Path
 import tempfile
-import os
 
 from wtf.core.permissions import (
     is_command_allowed,
