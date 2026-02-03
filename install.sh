@@ -414,7 +414,7 @@ if [ "$NEEDS_SHELL_RESTART" = true ]; then
 fi
 echo "Try:"
 echo ""
-echo -e "  ${CYAN}$COMMAND_NAME what's in my git status?${NC}"
+echo -e "  ${CYAN}$COMMAND_NAME show my git status${NC}"
 echo ""
 echo "The setup wizard will run automatically on first use."
 echo ""

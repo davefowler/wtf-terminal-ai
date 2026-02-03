@@ -123,7 +123,7 @@ Override the AI model for a query, or change your default model permanently.
 # Use a specific model for this query only
 $ wtf --model gpt-4o "explain quantum computing"
 $ wtf --model claude-3-opus "refactor this code..."
-$ wtf --model llama3.2 "what's my git status?"  # Local model!
+$ wtf --model llama3.2 "show my git status"  # Local model!
 
 # Change your default model permanently (no query = save as default)
 $ wtf --model claude-sonnet-4
@@ -171,7 +171,7 @@ Valid providers:
 Show diagnostic information during execution.
 
 ```bash
-$ wtf --verbose "what's my git status?"
+$ wtf --verbose "show my git status"
 
 [DEBUG] Using model: claude-3.5-sonnet
 [DEBUG] Context gathered: 150 chars
@@ -262,7 +262,7 @@ After any flags, you can provide a query:
 
 ```bash
 # Simple query
-$ wtf "what's my git status?"
+$ wtf "show my git status"
 
 # Multiple words (quotes optional)
 $ wtf how do I exit vim
@@ -342,7 +342,7 @@ wtf "my query"  # Uses GPT-4
 ### First Time Setup
 
 ```bash
-$ wtf "what's my git status?"
+$ wtf "show my git status"
 No configuration found. Running setup wizard...
 
 Which AI provider? [1] Anthropic

@@ -5,7 +5,7 @@ First off if you want any guidance on how to use `wtf` just ask it.  You don't h
 `wtf` is a natural language interface for your terminal. No flags to remember. No syntax to learn. Just describe what you want.
 
 ```bash
-$ wtf "what's my git status?"
+$ wtf "show my git status"
 ```
 
 That's it. `wtf` figures out the rest.
@@ -27,7 +27,7 @@ All of these work through natural language. You never run `wtf --flag-name`. You
 ## Basic Usage
 
 ```bash
-$ wtf "what's my git status?"
+$ wtf "show my git status"
 
 Ah, the eternal question. Let me check for you.
 

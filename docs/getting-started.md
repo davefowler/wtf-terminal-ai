@@ -45,7 +45,7 @@ pip install -e .
 On first use, wtf automatically runs a setup wizard:
 
 ```bash
-$ wtf "what's wrong?"
+$ wtf "help me"
 
 ⚠  No configuration found. Running setup wizard...
 
