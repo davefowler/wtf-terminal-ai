@@ -236,7 +236,7 @@ INSTALL_METHOD=""
 
 if command -v pipx &> /dev/null; then
     # pipx is available - use it for clean isolation
-    if pipx install wtf-ai --force > /tmp/wtf-install.log 2>&1; then
+    if pipx install git+https://github.com/davefowler/wtf-terminal-ai.git --force > /tmp/wtf-install.log 2>&1; then
         INSTALL_SUCCESS=true
         INSTALL_METHOD="pipx"
     fi
@@ -244,7 +244,7 @@ fi
 
 if [ "$INSTALL_SUCCESS" = false ]; then
     # Try standard pip --user install
-    if $PIP_CMD install --user --upgrade wtf-ai > /tmp/wtf-install.log 2>&1; then
+    if $PIP_CMD install --user --upgrade git+https://github.com/davefowler/wtf-terminal-ai.git > /tmp/wtf-install.log 2>&1; then
         INSTALL_SUCCESS=true
         INSTALL_METHOD="pip"
     fi
@@ -254,7 +254,7 @@ if [ "$INSTALL_SUCCESS" = false ]; then
     # Check if we hit the PEP 668 externally-managed error
     if grep -q "externally-managed-environment" /tmp/wtf-install.log 2>/dev/null; then
         # Use --break-system-packages with --user (safe per PEP 668 recommendations)
-        if $PIP_CMD install --user --break-system-packages --upgrade wtf-ai > /tmp/wtf-install.log 2>&1; then
+        if $PIP_CMD install --user --break-system-packages --upgrade git+https://github.com/davefowler/wtf-terminal-ai.git > /tmp/wtf-install.log 2>&1; then
             INSTALL_SUCCESS=true
             INSTALL_METHOD="pip"
         fi
@@ -263,7 +263,7 @@ fi
 
 if [ "$INSTALL_SUCCESS" = false ]; then
     # Try without --user (for virtual environments)
-    if $PIP_CMD install --upgrade wtf-ai > /tmp/wtf-install.log 2>&1; then
+    if $PIP_CMD install --upgrade git+https://github.com/davefowler/wtf-terminal-ai.git > /tmp/wtf-install.log 2>&1; then
         INSTALL_SUCCESS=true
         INSTALL_METHOD="pip"
     fi
@@ -278,10 +278,10 @@ else
     cat /tmp/wtf-install.log
     echo ""
     echo "You can try installing manually:"
-    echo -e "  ${CYAN}$PIP_CMD install --user wtf-ai${NC}"
+    echo -e "  ${CYAN}$PIP_CMD install --user git+https://github.com/davefowler/wtf-terminal-ai.git${NC}"
     echo ""
     echo "Or use pipx (recommended for CLI tools):"
-    echo -e "  ${CYAN}brew install pipx && pipx install wtf-ai${NC}"
+    echo -e "  ${CYAN}brew install pipx && pipx install git+https://github.com/davefowler/wtf-terminal-ai.git${NC}"
     exit 1
 fi
 

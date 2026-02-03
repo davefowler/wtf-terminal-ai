@@ -25,7 +25,7 @@ This will:
 ### Option 2: pip
 
 ```bash
-pip install wtf-ai
+pip install git+https://github.com/davefowler/wtf-terminal-ai.git
 ```
 
 Simple. Direct. No frills. Just like we like our coffee.

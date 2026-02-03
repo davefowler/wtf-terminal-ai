@@ -57,7 +57,7 @@ Pick an alternative, or manually resolve:
 vim ~/.zshrc  # Remove old 'alias wtf=...'
 
 # Option 2: Install with different name
-pip install wtf-ai
+pip install git+https://github.com/davefowler/wtf-terminal-ai.git
 ln -s $(which wtf) ~/bin/wai
 ```
 
