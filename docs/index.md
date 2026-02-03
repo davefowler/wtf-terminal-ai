@@ -70,7 +70,7 @@ Three ways to install, because choice is the illusion of control:
 === "pip"
 
     ```bash
-    pip install wtf-ai
+    pip install git+https://github.com/davefowler/wtf-terminal-ai.git
     ```
 
 === "From Source"
