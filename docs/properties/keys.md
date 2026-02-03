@@ -89,7 +89,7 @@ $ wtf --setup
 The first time you run `wtf`, it asks you to pick a provider:
 
 ```bash
-$ wtf what's my git status?
+$ wtf show my git status
 
 No API key configured. Let's set one up.
 

@@ -60,7 +60,7 @@ pip install -e .
 
 ```bash
 # First time use - setup wizard runs automatically
-wtf "what's in my git status?"
+wtf "show my git status"
 
 # After setup, use naturally
 wtf how do I exit vim

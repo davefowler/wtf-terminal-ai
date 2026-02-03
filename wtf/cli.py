@@ -224,6 +224,70 @@ def _save_llm_key(key_name: str, api_key: str) -> None:
         json.dump(keys, f, indent=2)
 
 
+def _detect_keys_from_shell_config(load_into_env: bool = True) -> Dict[str, bool]:
+    """
+    Detect API keys defined in shell config files (.zshrc, .bashrc, etc.).
+
+    This is a fallback for when keys are defined in shell config but the user
+    hasn't started a new terminal session to load them into the environment.
+
+    Args:
+        load_into_env: If True, automatically load found keys into os.environ
+                       so they're available for the current session.
+
+    Returns:
+        Dictionary mapping provider names to whether a key was found.
+    """
+    from pathlib import Path
+
+    home = Path.home()
+    shell_files = [
+        home / '.zshrc',
+        home / '.bashrc',
+        home / '.bash_profile',
+        home / '.profile',
+    ]
+
+    # Patterns to match: export ANTHROPIC_API_KEY=..., export OPENAI_API_KEY=..., etc.
+    # Capture the key value so we can load it into the environment
+    key_patterns = {
+        'anthropic': (
+            'ANTHROPIC_API_KEY',
+            re.compile(r'^\s*export\s+ANTHROPIC_API_KEY\s*=\s*["\']?([^"\'#\s\n]+)', re.MULTILINE)
+        ),
+        'openai': (
+            'OPENAI_API_KEY',
+            re.compile(r'^\s*export\s+OPENAI_API_KEY\s*=\s*["\']?([^"\'#\s\n]+)', re.MULTILINE)
+        ),
+        'google': (
+            'GOOGLE_API_KEY',
+            re.compile(r'^\s*export\s+(?:GOOGLE_API_KEY|GEMINI_API_KEY)\s*=\s*["\']?([^"\'#\s\n]+)', re.MULTILINE)
+        ),
+    }
+
+    found = {'anthropic': False, 'openai': False, 'google': False}
+
+    for shell_file in shell_files:
+        if shell_file.exists():
+            try:
+                content = shell_file.read_text()
+                for provider, (env_var, pattern) in key_patterns.items():
+                    if not found[provider]:
+                        match = pattern.search(content)
+                        if match:
+                            found[provider] = True
+                            # Load the key into environment if not already set
+                            if load_into_env and not os.environ.get(env_var):
+                                key_value = match.group(1).strip()
+                                # Skip placeholder values
+                                if key_value and not key_value.startswith('$') and key_value not in ('your-key-here', 'YOUR_KEY_HERE', 'xxx'):
+                                    os.environ[env_var] = key_value
+            except (PermissionError, IOError):
+                continue
+
+    return found
+
+
 def run_setup_wizard() -> Dict[str, Any]:
     """
     Run the interactive setup wizard.
@@ -267,12 +331,18 @@ def run_setup_wizard() -> Dict[str, Any]:
             grouped[provider_name] = []
         grouped[provider_name].append(model.model_id)
 
-    # Detect which API keys are available
+    # Detect which API keys are available (check env vars first, then shell config files)
     detected_keys = {
         "anthropic": bool(os.environ.get("ANTHROPIC_API_KEY")),
         "openai": bool(os.environ.get("OPENAI_API_KEY")),
         "google": bool(os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")),
     }
+
+    # Also check shell config files as fallback (for keys defined but not yet loaded)
+    shell_config_keys = _detect_keys_from_shell_config()
+    for provider in detected_keys:
+        if not detected_keys[provider] and shell_config_keys.get(provider):
+            detected_keys[provider] = True
 
     # Check if local models are available (Ollama)
     all_available_ids = [m for models in grouped.values() for m in models]
@@ -844,7 +914,7 @@ def run_search_setup_wizard() -> None:
     console.print(f"[green]✓[/green] {selected['name']} API key saved!")
     console.print()
     console.print("Try it out:")
-    console.print("  [cyan]wtf what's the weather in SF?[/cyan]")
+    console.print("  [cyan]wtf show the weather in SF[/cyan]")
     console.print()
 
 

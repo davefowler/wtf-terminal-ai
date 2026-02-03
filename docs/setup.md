@@ -38,7 +38,7 @@ Your API key is stored securely in your system keychain when possible, or in the
 Once setup is complete, try a simple command:
 
 ```bash
-$ wtf "what's in my git status?"
+$ wtf "show my git status"
 ```
 
 If you see `wtf` respond with something helpful (or sarcastic), you're good to go.
