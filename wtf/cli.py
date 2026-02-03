@@ -224,12 +224,16 @@ def _save_llm_key(key_name: str, api_key: str) -> None:
         json.dump(keys, f, indent=2)
 
 
-def _detect_keys_from_shell_config() -> Dict[str, bool]:
+def _detect_keys_from_shell_config(load_into_env: bool = True) -> Dict[str, bool]:
     """
     Detect API keys defined in shell config files (.zshrc, .bashrc, etc.).
 
     This is a fallback for when keys are defined in shell config but the user
     hasn't started a new terminal session to load them into the environment.
+
+    Args:
+        load_into_env: If True, automatically load found keys into os.environ
+                       so they're available for the current session.
 
     Returns:
         Dictionary mapping provider names to whether a key was found.
@@ -245,10 +249,20 @@ def _detect_keys_from_shell_config() -> Dict[str, bool]:
     ]
 
     # Patterns to match: export ANTHROPIC_API_KEY=..., export OPENAI_API_KEY=..., etc.
+    # Capture the key value so we can load it into the environment
     key_patterns = {
-        'anthropic': re.compile(r'^\s*export\s+ANTHROPIC_API_KEY\s*=\s*["\']?([^"\'#\s]+)', re.MULTILINE),
-        'openai': re.compile(r'^\s*export\s+OPENAI_API_KEY\s*=\s*["\']?([^"\'#\s]+)', re.MULTILINE),
-        'google': re.compile(r'^\s*export\s+(GOOGLE_API_KEY|GEMINI_API_KEY)\s*=\s*["\']?([^"\'#\s]+)', re.MULTILINE),
+        'anthropic': (
+            'ANTHROPIC_API_KEY',
+            re.compile(r'^\s*export\s+ANTHROPIC_API_KEY\s*=\s*["\']?([^"\'#\s\n]+)', re.MULTILINE)
+        ),
+        'openai': (
+            'OPENAI_API_KEY',
+            re.compile(r'^\s*export\s+OPENAI_API_KEY\s*=\s*["\']?([^"\'#\s\n]+)', re.MULTILINE)
+        ),
+        'google': (
+            'GOOGLE_API_KEY',
+            re.compile(r'^\s*export\s+(?:GOOGLE_API_KEY|GEMINI_API_KEY)\s*=\s*["\']?([^"\'#\s\n]+)', re.MULTILINE)
+        ),
     }
 
     found = {'anthropic': False, 'openai': False, 'google': False}
@@ -257,9 +271,17 @@ def _detect_keys_from_shell_config() -> Dict[str, bool]:
         if shell_file.exists():
             try:
                 content = shell_file.read_text()
-                for provider, pattern in key_patterns.items():
-                    if not found[provider] and pattern.search(content):
-                        found[provider] = True
+                for provider, (env_var, pattern) in key_patterns.items():
+                    if not found[provider]:
+                        match = pattern.search(content)
+                        if match:
+                            found[provider] = True
+                            # Load the key into environment if not already set
+                            if load_into_env and not os.environ.get(env_var):
+                                key_value = match.group(1).strip()
+                                # Skip placeholder values
+                                if key_value and not key_value.startswith('$') and key_value not in ('your-key-here', 'YOUR_KEY_HERE', 'xxx'):
+                                    os.environ[env_var] = key_value
             except (PermissionError, IOError):
                 continue
 
